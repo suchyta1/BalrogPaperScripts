@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import Utils
 import JacknifeSphere as JK
 import PlottingStuff
+import MoreUtils
 
 
 
@@ -445,31 +446,29 @@ def UniformRandom(size=5e8, band='i', rakey='ra', deckey='dec'):
 
 
 
+def sgcut(arr, val, band='i'):
+    cut = (arr['modest_%s'%(band)]==val)
+    return arr[cut]
+
+def mcut(arr, l, u, col='mag_auto', band='i'):
+    if band is not None:
+        col = '%s_%s' %(col,band)
+    cut = (arr[col] > l) & (arr[col] < u)
+    return arr[cut]
 
 
-def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt', njack=24, generatejack=False,  corrconfig=None, lower=None, upper=None, modest=0, declow=None, dechigh=None, vers=None, invertvers=False, rtype='n-1'):
+
+def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt', njack=24, mag=True, generatejack=False,  corrconfig=None, lower=None, upper=None, modest=0, declow=None, dechigh=None, vers=None, invertvers=False, rtype='n-1', killnosim=True):
+    '''
     print 'getting masks'
     speedup = Utils.GetUsualMasks()
     datadir = os.path.join(os.environ['GLOBALDIR'],'sva1-umatch')
 
     print 'reading data'
-    #sim, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True, notruth=True, needonly=True)
-    #sim, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True, notruth=True, needonly=True)
-    sim, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True, notruth=True, needonly=False)
-    #sim, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=False, notruth=True, needonly=False)
+    sim, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=False, notruth=True, needonly=False)
 
     print 'generating uniform'
     uniform = UniformRandom(size=10e7, band=band, rakey='ra', deckey='dec')
-
-
-
-    '''
-    matched_slr = os.path.join(datadir, 'matched_i-griz-slr-2.fits')
-    des_slr = os.path.join(datadir, 'des_i-griz-slr-2.fits')
-
-    print np.sum( des['alphawin_j2000_i'] > -100000 )
-    print np.sum( des['deltawin_j2000_i'] > -100000 )
-    '''
 
 
     #print len(uniform), len(sim), len(des)
@@ -477,75 +476,68 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     sim = Utils.ApplyThings(sim, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=True, lower=lower, upper=upper, colorcut=True, badflag=True, jbadflag=False, elimask=True, benchmask=True, invertbench=False, posband='i', posonly=False, declow=declow, dechigh=dechigh, nozero=False, noduplicate=False, vers=vers, invertvers=invertvers, **speedup)
     des = Utils.ApplyThings(des, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=True, lower=lower, upper=upper, colorcut=True, badflag=True, jbadflag=False, elimask=True, benchmask=True, invertbench=False, posband='i', posonly=False, declow=declow, dechigh=dechigh, vers=vers, invertvers=invertvers, **speedup)
     uniform = Utils.ApplyThings(uniform, band, slr=False, slrinvert=False, slrwrite=None, modestcut=None, mag=False, colorcut=False, badflag=False, elimask=True, benchmask=True, invertbench=False, posband='i', ra='ra', dec='dec', declow=declow, dechigh=dechigh, **speedup)
+    '''
 
-
     '''
-    esutil.io.write('sim-no-v3_2-23-24.fits', sim)
-    esutil.io.write('des-no-v3_2-23-24.fits', des)
-    sys.exit()
-    sim = esutil.io.read('sim-no-v3_2-23-24.fits')
-    des = esutil.io.read('des-no-v3_2-23-24.fits')
-    '''
-  
-    '''
-    basedir = os.path.join(outdir, outlabel, band)
-    Utils.JKSeries(basedir, sim, jfile, band, ra='alphawin_j2000', dec='deltawin_j2000', outdir=os.path.join('JKPlots', '24JK-23-24-stars'), seed=100)
-    sys.exit()
+    speedup = Utils.GetUsualMasks()
+    uniform = UniformRandom(size=10e6, band=band, rakey='ra', deckey='dec')
+    uniform = Utils.ApplyThings(uniform, band, slr=False, slrinvert=False, slrwrite=None, modestcut=None, mag=False, colorcut=False, badflag=False, elimask=True, benchmask=True, invertbench=False, posband='i', ra='ra', dec='dec', declow=declow, dechigh=dechigh, **speedup)
+    print len(uniform)
     '''
 
 
-    #sys.exit()
+    sim = esutil.io.read('sim4huff.fits')
+    des = esutil.io.read('des4huff.fits')
+    print len(sim), len(des)
 
-    """
-    fig, axarr = plt.subplots(1,2, figsize=(30,16))
-    npoints, xlim, ylim = Utils.PointMap(sim, band=band, plotkwargs={'lw':0, 's':0.2}, ax=axarr[0])
-    npoints, xlim, ylim = Utils.PointMap(des, band=band, plotkwargs={'lw':0, 's':0.2}, ax=axarr[1])
-    #npoints, xlim, ylim = Utils.PointMap(uniform, downsize=npoints, band=band, x='ra', y='dec', plotkwargs={'lw':0, 's':0.2}, ax=axarr[2])
+    dstar = sgcut(des, 1)
+    sstar = sgcut(sim, 1)
+    dgal = sgcut(des, 0)
+    sgal = sgcut(sim, 0)
+    print len(dstar), len(dgal)
 
-    ''' 
-    vs = [0,1,2,3]
-    cs = ['red', 'blue', 'yellow', 'green']
-    for i in range(len(vs)):
-        cut = (sim['version_i']==vs[i])
-        s = sim[cut]
-        print np.sum(cut)
+    sbad = (sstar['objtype_i']==1)
+    print np.sum(sbad) / float(len(sstar))
 
-        cut = (des['version_i']==vs[i])
-        d = des[cut]
-        print np.sum(cut)
+    print len(dstar)/float(len(des)), len(sstar)/float(len(sim))
+    print len(dgal)/float(len(des)), len(sgal)/float(len(sim))
 
-        npoints, xlim, ylim = Utils.PointMap(s, downfactor=3, band=band, plotkwargs={'lw':0, 's':0.2, 'c':cs[i]}, ax=axarr[0])
-        npoints, xlim, ylim = Utils.PointMap(d, downsize=npoints, band=band, plotkwargs={'lw':0, 's':0.2, 'c':cs[i]}, ax=axarr[1])
+
+    dmstar = mcut(dstar, 21, 23)
+    smstar = mcut(sstar, 21, 23)
+    print 'star S, D:', len(smstar), len(dmstar)
+    
+    dmgal = mcut(dgal, 23, 24)
+    smgal = mcut(sgal, 23, 24)
+    print 'gal S, D:', len(smgal), len(dmgal)
 
     '''
-    axarr[0].set_ylim( [-60.2,-58] )
-    axarr[1].set_ylim( [-60.2,-58] )
+    fig, axarr = plt.subplots(1, 2, figsize=(16,8))
+    npoints, xlim, ylim = Utils.PointMap(smgal, downfactor=3, band=band, ax=axarr[0], plotkwargs={'lw':0, 's':0.2})
+    npoints, xlim, ylim = Utils.PointMap(dmgal, downsize=npoints, band=band, ax=axarr[1], plotkwargs={'lw':0, 's':0.2})
+    plt.show()
+    '''
+
+
+    gbad = (smgal['objtype_i']==3)
+    print np.sum(gbad) / float(len(smgal))
+
+    sbad = (smstar['objtype_i']==1)
+    print np.sum(sbad) / float(len(smstar))
+
+    '''
+    fig, axarr = plt.subplots(1,2, figsize=(12,6))
+    bins = np.arange(19, 22.2, 0.1)
+    axarr[0].hist(dmstar['mag_auto_i'], bins=bins, color='blue')
+    axarr[0].hist(smstar['mag_auto_i'], bins=bins, color='red')
     plt.show()
     sys.exit()
-    """
-
-
-    #keep = np.random.choice(len(uniform), size=10*len(des), replace=False)
-    #uniform = uniform[keep]
+    '''
 
     ra = 'alphawin_j2000_%s'%(band)
     dec = 'deltawin_j2000_%s'%(band)
-    ura = 'ra_%s'%(band)
-    udec = 'dec_%s'%(band)
-
-    '''
-    depth = GetDepthMap()
-    MakeDepthHist(des, ra, dec, depth)
-    sys.exit()
-    '''
-
-    #m_lower = 22.5
-    #m_upper = 23.5
-    #sim = DepthSelect(sim, ra, dec, depth, lower=m_lower, upper=m_upper)
-    #des = DepthSelect(des, ra, dec, depth, lower=m_lower, upper=m_upper)
-    #uniform = DepthSelect(uniform, ura, udec, depth, lower=m_lower, upper=m_upper)
-    print len(uniform), len(sim), len(des)
- 
+    rra = 'ra_%s'%(band)
+    rdec = 'dec_%s'%(band)
 
     basedir = os.path.join(outdir, outlabel, band)
     if generatejack:
@@ -553,22 +545,18 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     else:
         jtype = 'read'
 
-    save = FileSetup(basedir, 'DB', corrconfig)
-    #hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [des,sim], [ra,ra], [dec,dec], JKCorr, jargs=[], jkwargs={'datara':ra, 'datadec':dec, 'randomra':ra, 'randomdec':dec, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save, itsave=True, rtype=rtype)
-    hists, covs, extra, jextra = JK.JackknifeOnSphere( [des,sim], [ra,ra], [dec,dec], JKCorr, jargs=[], jkwargs={'datara':ra, 'datadec':dec, 'randomra':ra, 'randomdec':dec, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save)
-   
-    '''
-    save = FileSetup(basedir, 'DU', corrconfig)
-    hists, covs, extra, jextra = JK.JackknifeOnSphere( [des,uniform], [ra,ura], [dec,udec], JKCorr, jargs=[], jkwargs={'datara':ra, 'datadec':dec, 'randomra':ura, 'randomdec':udec, 'corrconfig':corrconfig}, jtype='read', njack=njack, jfile=jfile, save=save)
-
-    save = FileSetup(basedir, 'BU', corrconfig)
-    hists, covs, extra, jextra = JK.JackknifeOnSphere( [sim,uniform], [ra,ura], [dec,udec], JKCorr, jargs=[], jkwargs={'datara':ra, 'datadec':dec, 'randomra':ura, 'randomdec':udec, 'corrconfig':corrconfig}, jtype='read', njack=njack, jfile=jfile, save=save)
-    '''
 
     '''
-    save = FileSetup(basedir, 'DxB', corrconfig)
-    hists, covs, extra, jextra = JK.JackknifeOnSphere( [des,uniform, sim,uniform], [ra,ura, ra,ura], [dec,udec, dec,udec], JKCorr, jargs=[], jkwargs={'cross':True, 'datara':ra, 'datadec':dec, 'randomra':ura, 'randomdec':udec, 'corrconfig':corrconfig}, jtype='read', njack=njack, jfile=jfile, save=save)
+    save = FileSetup(basedir, 'SxG', corrconfig)
+    #hists, covs, extra, jextra = JK.JackknifeOnSphere( [dgal,sgal, dstar,sstar], [ra,ra, ra,ra], [dec,dec, dec,dec], JKCorr, jargs=[], jkwargs={'cross':True, 'datara':ra, 'datadec':dec, 'randomra':ra, 'randomdec':dec, 'corrconfig':corrconfig}, jtype=jtype, njack=njack, jfile=jfile, save=save)
+    hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [dmgal,smgal, dmstar,smstar], [ra,ra, ra,ra], [dec,dec, dec,dec], JKCorr, jargs=[], jkwargs={'cross':True, 'datara':ra, 'datadec':dec, 'randomra':ra, 'randomdec':dec, 'corrconfig':corrconfig}, jtype=jtype, njack=njack, jfile=jfile, save=save, itsave=True, rtype=rtype)
     '''
+
+    save = FileSetup(basedir, 'SS', corrconfig)
+    hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [dmstar,smstar], [ra,ra], [dec,dec], JKCorr, jargs=[], jkwargs={'cross':False, 'datara':ra, 'datadec':dec, 'randomra':ra, 'randomdec':dec, 'corrconfig':corrconfig}, jtype=jtype, njack=njack, jfile=jfile, save=save, itsave=True, rtype=rtype)
+
+    #save = FileSetup(basedir, 'SU', corrconfig)
+    #hists, covs, extra, jextra = JK.JackknifeOnSphere( [dstar,uniform], [ra,rra], [dec,rdec], JKCorr, jargs=[], jkwargs={'cross':False, 'datara':ra, 'datadec':dec, 'randomra':rra, 'randomdec':rdec, 'corrconfig':corrconfig}, jtype=jtype, njack=njack, jfile=jfile, save=save)
 
 
 
@@ -688,65 +676,115 @@ if __name__=='__main__':
 
     band = 'i'
     corrconfig = {'sep_units': 'arcmin',
-                  'min_sep': 0.12,
+                  'min_sep': 0.06,
                   'max_sep': 600.0,
-                  'nbins': 40,
+                  'nbins': 45,
                   'bin_slop': 0.25}
 
-    #Correlate(band=band, corrconfig=corrconfig, outlabel='bench-selection-bugfix-extracuts-23-24', jfile=os.path.join('JK-regions', '24JK-bench-bugfix-23-24'), generatejack=True, lower=23, upper=24)
 
+    #label = 'SxG-test-21-22'
+    #label = 'SS-test-U'
 
-    vers = 2
-    label = 'BM-no%i-23-24-test' %(vers)
-    Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-%s'%(label)), generatejack=True, lower=23, upper=24, vers=vers, invertvers=True)
+    #label = 'SxG-test-23-24'
+    #Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-%s'%(label)), generatejack=False)
+    label = 'SxG-23-24-DEC-3'
+    #Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-BM-23-24-DEC'), generatejack=False)
+    #sys.exit()
+
+    fig, ax = plt.subplots(1,1, figsize=(10,8))
+
+    '''
+    label = 'SxG-test-21-22'
+    sg_theta, sg_w, sg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='SxG', plotkwargs={'c':'cyan', 'label':r'SxG, G21', 'fmt':'o'}, ax=ax, get=True, contam=0, noplot=True)
+    '''
+
+    #label = 'SxG-test'
+    #label = 'SxG-test-23-24'
+    #sg_theta, sg_w, sg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='SxG', plotkwargs={'c':'green', 'label':r'SxG, G23', 'fmt':'o'}, ax=ax, get=True, contam=0, noplot=True)
+
+    label = 'SxG-23-24-DEC-3'
+    sg_theta, sg_w, sg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='SxG', plotkwargs={'c':'blue', 'label':r'SxG', 'fmt':'o'}, ax=ax, get=True, contam=0, noplot=True)
+
+    #sg_w[:] = 1.5e-3
+
+    #label = 'SS-test'
+    ss_theta, ss_w, ss_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='SS', plotkwargs={'c':'cyan', 'label':r'SS Direct', 'fmt':'o'}, ax=ax, get=True, contam=0)
+
+    '''
+    label = 'SS-test-U'
+    ss_theta, ss_w, ss_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='SU', plotkwargs={'c':'blue', 'label':r'SU $19 < i < 21$', 'fmt':'o'}, ax=ax, get=True, contam=0)
+    '''
+   
+    label = 'BM-23-24-DEC'
+    gg_theta, gg_w, gg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'red', 'label':r'DES \textsc{Balrog} (Raw)', 'fmt':'o'}, ax=ax, get=True, contam=0, noplot=True)
+
+    #ax.scatter(gg_theta, gg, color='blue')
+    #gg_theta, gg_w, gg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'orange', 'label':r'DES \textsc{Balrog} (Corrected)', 'fmt':'o'}, ax=ax, get=True, contam=0)
+    #gg_theta, gg_w, gg_cov, gg = MoreUtils.RecreateContam(label, njack=24, gc=0.04, sc=0.04, band='i', kind='DB')
+    #ax.errorbar(gg_theta, gg_w, np.sqrt(np.diag(gg_cov)), fmt='o', color='orange', label='Corrected')
+    #ax.scatter(gg_theta, gg, color='blue')
+    #gg_theta, gg_w, gg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'orange', 'label':r'DES \textsc{Balrog} (Corrected)', 'fmt':'o'}, ax=ax, get=True, contam=0)
+
+    gc = 0.07
+    sc = 0.03
     
+    cor = MoreUtils.ContaminationCorrection(gg_w, sg_w, gc=gc, sc=sc)
+    ss = MoreUtils.StellarAuto(gg_w, sg_w, gc=gc, sc=sc)
+    cor2 = MoreUtils.AshleyCorrection(gg_w, ss_w, gc=gc)
+
+    #label = 'BM-23-24-DEC-corrected-4'
+    label = 'BM-23-24-full'
+    #gg_theta, gg_w, gg_cov = MoreUtils.RecreateContam(label, njack=24, gc=gc, sc=sc, band='i', kind='DB')
+    gg_theta, gg_w, gg_cov = PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'orange', 'label':r'SG Cor', 'fmt':'o'}, ax=ax, get=True, contam=0, noplot=False)
+
+    f_theta, f_ss, f_sscov = MoreUtils.GetThing(label, 4, other=0, njack=24, outdir='CorrFiles', band='i', kind='DB')
+    f_theta, f_iss, f_isscov = MoreUtils.GetThing(label, 5, other=0, njack=24, outdir='CorrFiles', band='i', kind='DB')
+    f_theta, f_gg, f_ggcov = MoreUtils.GetThing(label, 1, other=0, njack=24, outdir='CorrFiles', band='i', kind='DB')
+    cor3 = MoreUtils.AshleyCorrection(f_gg, f_ss, gc=gc)
+
+    ax.errorbar(f_theta, f_ss, yerr=np.sqrt(np.diag(f_sscov)), fmt='o', color='maroon', label='Full SS')
+    ax.errorbar(f_theta, f_iss, yerr=np.sqrt(np.diag(f_isscov)), fmt='o', color='pink', label='Full ISS')
+    ax.errorbar(f_theta, f_gg, yerr=np.sqrt(np.diag(f_ggcov)), fmt='o', color='red', label='Full Raw')
+    ax.scatter(f_theta, cor3, color='blue', label='Full ACor')
+
+    gg_theta, gg_w, gg_cov = MoreUtils.RecreateContam(label, njack=24, gc=0.2, sc=0.04, band='i', kind='DB')
+
     '''
-    vers = None
-    label = 'BM-JK-perN-23-24-stars'
-    Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-%s'%(label)), generatejack=True, lower=23, upper=24, vers=vers, invertvers=False, rtype='/n', modest=1)
+    if gc != 0:
+        ss_w = (sg_w - sc* gg_w)
+        #ax.scatter(gg_theta, ss_w, color='blue', label='My guess at SS')
+        cor = np.power(1 + gc, 2) * ( gg_w - gc*ss_w - np.power(gc,4) / np.power(1+gc, 2) )
+
+        #cor = np.power(1 + gc, 2) * ( gg_w - gc*gc* ss_w - np.power(gc,4) / np.power(1+gc, 2) )
+    else:
+        cor = gg_w
     '''
 
+    #ax.errorbar(gg_theta, cor, np.sqrt(np.diag(gg_cov)), color='orange', label='Stellar Contamination Corrected', fmt='o')
+    #ax.errorbar(gg_theta, gg_w, np.sqrt(np.diag(gg_cov)), color='orange', label='Stellar Contamination Corrected', fmt='o')
+    #ax.scatter(gg_theta, cor2, color='blue', label='Corrected')
+    ax.scatter(gg_theta, gg_w, color='dodgerblue', label='Corrected')
+    ax.scatter(gg_theta, ss, color='purple', label='SS from SxG')
 
-    #Correlate(band=band, corrconfig=corrconfig, outlabel='bench-selection-bugfix-v%i-23-24-test'%(vers), jfile=os.path.join('JK-regions', '24JK-bench-bugfix-v%i-23-24'%(vers)), generatejack=True, lower=23, upper=24, vers=vers)
-    #Correlate(band=band, corrconfig=corrconfig, outlabel='bench-selection-bugfix-v%i-23-24-test'%(vers), jfile=os.path.join('JK-regions', '24JK-bench-bugfix-v%i-23-24'%(vers)), generatejack=False, lower=23, upper=24, vers=vers)
+    e = np.loadtxt('wtheta_EH_z2_z1BAOnlirealpz-suchyta.txt')
+    b = 1.18
+    ax.plot(e[:,0]/60.0, b*b*e[:,1], color='gray', ls='--')
+    #b = 1.0
+    #ax.plot(e[:,0]/60.0, b*b*e[:,1], color='gray', ls='-.')
 
-    #vers = 2
-    #Correlate(band=band, corrconfig=corrconfig, outlabel='v%ib-z-23-24'%(vers), jfile=os.path.join('JK-regions', '24JK-v%ib-z-23-24'%(vers)), generatejack=True, lower=23, upper=24, dechigh=None, declow=None, vers=vers)
+    '''
+    e = np.loadtxt('wtheta_EH_z2_z1BAOlinrealpz-suchyta.txt')
+    b = 1.0
+    ax.plot(e[:,0]/60.0, b*b*e[:,1], color='gray', ls='--')
+    '''
 
-    #vers = 0
-    #dechigh = -40 #-49 #-54 #
-    #declow =  -49 #-54 #-65 #
-    #Correlate(band=band, corrconfig=corrconfig, outlabel='dec_%i_%i-23-24'%(declow,dechigh), jfile=os.path.join('JK-regions', '24JK-dec_%i_%i-23-24'%(declow,dechigh)), generatejack=True, lower=23, upper=24, dechigh=None, declow=None, vers=vers)
-    #outlabel='22.5-23.5-selection'
-  
-    """
-    #fig, axarr, pfig, paxarr = PlotFromDisk('22.5-23.5-selection', band=band, label=[r'Mag Lim \textsc{Balrog}', r'Mag Lim Uniform'], color=['red','blue'])
-    #fig, axarr, pfig, paxarr = PlotFromDisk('bench-selection-22.5', band=band, fig=None, axarr=None, label=[r'Benchmark \textsc{Balrog} 22.5', r'Benchmark Uniform 22.5'], color=['red','blue'], pfig=None, paxarr=None)
-    #fig, axarr, pfig, paxarr = PlotFromDisk('bench-selection', band=band, fig=fig, axarr=axarr, label=[r'Benchmark \textsc{Balrog}', r'Benchmark Uniform'], color=['deeppink','dodgerblue'], pfig=pfig, paxarr=paxarr)
-    #fig, axarr, pfig, paxarr = PlotFromDisk('bench-selection', band=band, fig=fig, axarr=axarr, label=[r'Benchmark \textsc{Balrog}', r'Benchmark Uniform'], color=['deeppink','dodgerblue'], pfig=pfig, paxarr=paxarr)
-    """
+    #e = np.loadtxt('w-enrique.txt')
+    #ax.errorbar(e[:,0]/60.0, e[:,1], yerr=e[:,2], color='green', fmt='o', label="Enrique's COSMOS Measurement")
 
-    """
-    fig, ax = plt.subplots(1,1, figsize=(8,6))
-    #PlottingStuff.PlotOne('ASHLEY', plotkwargs={'c':'gray', 'label':r'Ashley Prediction'}, ax=ax)
-    #PlottingStuff.PlotOne('a15', plotkwargs={'c':'gray', 'label':r'A 1.5'}, ax=ax)
-
-    PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'red', 'label':r'Without v3\_2', 'fmt':'o'}, ax=ax)
-    #PlottingStuff.PlotOne('ACS', plotkwargs={'c':'black', 'label':r'ACS', 'fmt':'o'}, ax=ax)
-    PlottingStuff.PlotOne('ACS21', plotkwargs={'c':'black', 'label':r'ACS', 'fmt':'o'}, ax=ax)
+    #label = 'COSMOS-Umorph-23-24-v1'
+    #PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'black', 'label':r"Eric's COSMOS Measurement", 'fmt':'o'}, ax=ax)
 
 
-
-    #label = 'bench-selection-bugfix-v1-23-24'
-    #PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'blue', 'label':r'v3\_0', 'fmt':'o'}, ax=ax)
-
-    ax.legend(loc='best')
+    ax.legend(loc='lower left')
+    #ax.legend(loc='best')
     plt.show()
-
-    #OtherPlot()
-    #PlottingStuff.VPlot()
-    #DPlot()
-
-    #PlottingStuff.VPlot2()
-    """
-

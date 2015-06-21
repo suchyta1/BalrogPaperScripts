@@ -514,23 +514,28 @@ def JKSeries(basedir, cat, jfile, band, ra='alphawin_j2000', dec='deltawin_j2000
     area = JKRegionPlot(cat, jfile, band, ra=ra, dec=dec, seed=seed, cmap=cmap, ax=axarr[0])
 
     dir = os.path.join(basedir, type)
-    vdir = os.path.join(dir, 'vec', 'it', '0')
+    vdir = os.path.join(dir, 'vec', 'it', '3')
     cdir = os.path.join(dir, 'other', 'it', '0')
+    issdir = os.path.join(dir, 'vec', 'it', '4')
 
     axarr[1].set_xscale('log')
     axarr[1].set_yscale('log')
-    axarr[1].set_ylim( [1e-4, 1e-1] )
-    #axarr[1].set_ylim( [1e-4, 1e1] )
+    #axarr[1].set_ylim( [1e-4, 1e-1] )
+    axarr[1].set_ylim( [1e-4, 1e1] )
     axarr[1].set_ylabel(r'$w(\theta)$')
     axarr[1].set_xlabel(r'$\theta$')
 
     for i in range(njack):
         vfile = os.path.join(vdir, '%s.txt'%i)
         cfile = os.path.join(cdir, '%s.txt'%i)
+        issfile = os.path.join(issdir, '%s.txt'%i)
 
         xi = np.loadtxt(vfile)
         coord = np.loadtxt(cfile)
+        iss = np.loadtxt(issfile)
+
         axarr[1].plot(coord, xi, color=cmap[i])
+        axarr[1].plot(coord, iss, color=cmap[i])
 
 
 
@@ -545,26 +550,30 @@ def JKSeries(basedir, cat, jfile, band, ra='alphawin_j2000', dec='deltawin_j2000
 
             vfile = os.path.join(vdir, '%s.txt'%i)
             cfile = os.path.join(cdir, '%s.txt'%i)
+            issfile = os.path.join(issdir, '%s.txt'%i)
 
             xi = np.loadtxt(vfile)
             coord = np.loadtxt(cfile)
+            iss = np.loadtxt(issfile)
 
             if i==on:
                 if ind!=njack:
                     continue
                 else:
                     axarr[2].plot(coord, xi, color=cmap[i])
+                    axarr[2].plot(coord, iss, color=cmap[i])
                     axarr[0].plot(centers[i:(i+1), 0], centers[i:(i+1), 1], linestyle='None', marker='x', color='black', markersize=15)
             else:
                 axarr[2].plot(coord, xi, 'gray', alpha=0.25)
+                axarr[2].plot(coord, iss, 'gray', alpha=0.25)
 
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
     
         axarr[2].set_xscale('log')
         axarr[2].set_yscale('log')
-        axarr[2].set_ylim( [1e-4, 1e-1] )
-        #axarr[2].set_ylim( [1e-4, 1e1] )
+        #axarr[2].set_ylim( [1e-4, 1e-1] )
+        axarr[2].set_ylim( [1e-4, 1e1] )
         axarr[2].set_ylabel(r'$w(\theta)$')
         axarr[2].set_xlabel(r'$\theta$')
 

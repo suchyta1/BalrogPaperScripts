@@ -29,10 +29,10 @@ def Histograms(arr, things, b):
         shist, bins = np.histogram(sim, bins=bins)
         dhist, bins = np.histogram(des, bins=bins)
 
-        ss = float(len(sim))
-        dd = float(len(des))
-        #ss = np.sum(shist)
-        #dd = np.sum(dhist)
+        #ss = float(len(sim))
+        #dd = float(len(des))
+        ss = np.sum(shist)
+        dd = np.sum(dhist)
     
         s = np.log10( shist / (ss * db) )
         d = np.log10( dhist / (dd * db) )
@@ -332,7 +332,7 @@ def SetupFigure(stack, bands, basewidth=5.0, baseheight=4.5):
     return fig, axarr
 
 
-def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, stack='diff', nticks=None, nxticks=None, leg=0, legloc='best', divide=None, jfile='fullJK-24.txt', vers=None):
+def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, stack='diff', nticks=None, nxticks=None, leg=0, legloc='best', divide=None, jfile='fullJK-24.txt', vers=None, declow=None, dechigh=None):
     speedup = Utils.GetUsualMasks()
     #speedup = {}
   
@@ -349,13 +349,13 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
     '''
     cut = (matched['version_i']==2)
     matched = matched[cut]
-    cut = (des['version_i']==2)
+    c, declow=-58ut = (des['version_i']==2)
     des = des[cut]
     '''
 
 
-    matched = Utils.ApplyThings(matched, band, slr=True, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=False, invertbench=False, vers=vers, posband='i', **speedup)
-    des = Utils.ApplyThings(des, band, slr=True, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=False, invertbench=False, vers=vers, posband='i', **speedup)
+    matched = Utils.ApplyThings(matched, band, slr=True, slrwrite=None, modestcut=modest, mag=True, lower=19, upper=24, colorcut=True, badflag=True, elimask=True, benchmask=False, invertbench=False, vers=vers, posband='i', declow=declow, dechigh=dechigh, **speedup)
+    des = Utils.ApplyThings(des, band, slr=True, slrwrite=None, modestcut=modest, mag=True, lower=19, upper=24, colorcut=True, badflag=True, elimask=True, benchmask=False, invertbench=False, vers=vers, posband='i', declow=declow, dechigh=dechigh, **speedup)
 
     matched = Utils.AddColor(matched, bands=['i','z'])
     des = Utils.AddColor(des, bands=['i','z'])
@@ -468,10 +468,12 @@ if __name__=='__main__':
     vers = 2
     jfile=os.path.join('JK-regions', '24JK-bench-bugfix-v%i-23-24'%(vers))
 
+    '''
     #bins = [np.arange(-1, 1.4, 0.05), np.arange(1, 6.5, 0.15), np.arange(-0.02, 0.025, 0.001), np.arange(0, 0.011, 0.00025)]
     #GeneralDistsAndDifference(['iz','i','i','i'], ['mag_auto_iz', 'flux_radius_i','spread_model_i', 'spreaderr_model_i'], bins, [r'\texttt{mag\_auto\_i} - \texttt{mag\_auto\_z}', r'\texttt{flux\_radius}', r'\texttt{spread\_model}', r'\texttt{spreaderr\_model}'], ['mag', 'pixel', 'mag', 'mag'], modest=0, stack='diff', nticks=10, nxticks=6, divide=[1.0, 1.0, 1.0e-2, 1.0e-3], jfile=jfile)
     bins = [np.arange(-1, 1.4, 0.05), np.arange(1, 6.5, 0.15), np.arange(1, 6.5, 0.15), np.arange(0, 0.011, 0.00025)]
     GeneralDistsAndDifference(['iz','i','z','i'], ['mag_auto_iz', 'flux_radius_i','flux_radius_z', 'spreaderr_model_i'], bins, [r'\texttt{MAG\_AUTO\_I} - \texttt{MAG\_AUTO\_Z}', r'\texttt{FLUX\_RADIUS}', r'\texttt{FLUX\_RADIUS}', r'\texttt{SPREADERR\_MODEL}'], ['mag', 'pixel', 'pixel', 'mag'], modest=0, stack='diff', nticks=6, nxticks=6, divide=[1.0, 1.0, 1.0, 1.0e-3], jfile=jfile, legloc='lower center', vers=vers)
+    '''
 
     '''
     #b = np.arange(18, 28, 0.2)
@@ -481,7 +483,5 @@ if __name__=='__main__':
     GeneralDistsAndDifference(['g','r','i','z'], ['mag_auto_g', 'mag_auto_r', 'mag_auto_i', 'mag_auto_z'], bins, [r'\texttt{MAG\_AUTO}']*4, ['mag']*4, modest=0, stack='diff', nticks=6, nxticks=6, jfile=jfile, vers=vers)
     '''
  
-    '''
     bins = [np.arange(17.8, 25, 0.2)]
-    GeneralDistsAndDifference(['i'], ['mag_auto_i'], bins, [r'\texttt{MAG\_AUTO}'], ['mag'], modest=1, stack='band', nticks=6, nxticks=6, jfile=jfile)
-    '''
+    GeneralDistsAndDifference(['i'], ['mag_auto_i'], bins, [r'\texttt{MAG\_AUTO}'], ['mag'], modest=1, stack='band', nticks=6, nxticks=6, jfile=jfile, declow=-58)

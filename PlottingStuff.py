@@ -62,7 +62,7 @@ def VPlot(band='i'):
     plt.show()
 
 
-def PlotOne(dir, outdir='CorrFiles', band='i', kind='DB', plotkwargs={}, ax=None, contam=0):
+def PlotOne(dir, outdir='CorrFiles', band='i', kind='DB', plotkwargs={}, ax=None, contam=0, get=False, noplot=False):
     #dir = 'BM-no%i-23-24'
 
     if dir=='ACS':
@@ -94,19 +94,25 @@ def PlotOne(dir, outdir='CorrFiles', band='i', kind='DB', plotkwargs={}, ax=None
         ax = axarr[0]
 
 
-    if dir in ['ASHLEY', 'a15', 'a17', 'a2']:
-        ax.plot(db[:,0], db[:,1], **plotkwargs)
-    else:
-        ax.errorbar( DB[2], DB[0], yerr=np.sqrt(np.diag(DB[1])), **plotkwargs)
+    if not noplot:
+        if dir in ['ASHLEY', 'a15', 'a17', 'a2']:
+            ax.plot(db[:,0], db[:,1], **plotkwargs)
+        else:
+            ax.errorbar( DB[2], DB[0], yerr=np.sqrt(np.diag(DB[1])), **plotkwargs)
 
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
 
-    ax.set_ylim([1e-4, 1])
-    ax.set_xlim([3e-3, 10])
+        ax.set_ylim([1e-4, 1])
+        ax.set_xlim([3e-4, 10])
 
-    ax.set_xlabel(r'$\theta$ [deg]')
-    ax.set_ylabel(r'$w(\theta)$')
+        ax.set_xlabel(r'$\theta$ [deg]')
+        ax.set_ylabel(r'$w(\theta)$')
+        
+        ax.grid(b=False, which='minor')
+
+    if get:
+        return DB[2], DB[0], DB[1]
 
 
 

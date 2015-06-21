@@ -30,7 +30,7 @@ def buildBadRegionMap(sim, truth, nside=4096, nest = True, magThresh=1., HPIndic
     regionMap[binct_tot == 0] = hp.UNSEEN
     return regionMap
 
-def visualizeHealPixMap(theMap, nest=True, title="map", norm=None, vmin = None, vmax = None):
+def visualizeHealPixMap(theMap, nest=True, title="map", norm=None, vmin=None, vmax=None, cmap=plt.cm.hot_r):
     
     from matplotlib.collections import PolyCollection
     from matplotlib.colors import Normalize
@@ -50,7 +50,8 @@ def visualizeHealPixMap(theMap, nest=True, title="map", norm=None, vmin = None, 
 
 
     fig, ax = plt.subplots(figsize=(12,12))
-    coll = PolyCollection(vertices, array = mapValue, cmap = plt.cm.seismic, edgecolors='none')
+    #coll = PolyCollection(vertices, array = mapValue, cmap = plt.cm.seismic, edgecolors='none')
+    coll = PolyCollection(vertices, array=mapValue, cmap=cmap, edgecolors='none')
     coll.set_clim(vmin=vmin, vmax=vmax)
     ax.add_collection(coll)
     ax.set_title(title)

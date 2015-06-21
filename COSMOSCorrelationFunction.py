@@ -433,7 +433,7 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     else:
         jtype = 'read'
 
-    mra = 'ra'    
+    mra = 'alphawin_j2000_i'    
     mdec = 'dec'
     rra = 'ra'
     rdec = 'dec'
@@ -462,8 +462,8 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [des,sim], [mra,rra], [mdec,rdec], JKCorr, jargs=[], jkwargs={'datara':mra, 'datadec':mdec, 'randomra':rra, 'randomdec':rdec, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save, itsave=True, rtype=rtype)
     '''
 
-    #masked_morph, mask, random = MoreUtils.GetCOSMOS23()
-    masked_morph, random = MoreUtils.GetCOSMOS23()
+    masked_morph, mask, random = MoreUtils.GetCOSMOS23()
+    #masked_morph, random = MoreUtils.GetCOSMOS23()
     mra = 'ra'    
     mdec = 'dec'
     rra = 'ra'
@@ -607,7 +607,7 @@ if __name__=='__main__':
                   'max_sep': 18, #0.3 degrees
                   'nbins': 10,
                   #'bin_slop': 0.05
-                  'bin_slop': 0.00}
+                  'bin_slop': 0.10}
 
 
 
@@ -620,30 +620,54 @@ if __name__=='__main__':
     '''
 
 
-    label = 'COSMOS-morph-23-24-v9'
+    label = 'COSMOS-Umorph-23-24-v2'
     #label = 'jelena-no-hole-23-24-perN-now'
     njack = 24
     #Correlate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1')
     #sys.exit()
 
     
+    #d = esutil.io.read(os.path.join(os.environ['GLOBALDIR'],'sva1-umatch','des_i-griz.fits'))
+    #d = esutil.io.read('des-4Peter.fits')
+    #d = esutil.io.read('des-no-v3_2-23-24.fits')
+    #c, crandom = MoreUtils.GetCOSMOS23()
+    #MoreUtils.ScaleCovariance(d, None, None, njack=24, nside=4096, nest=False, cat1_ra='alphawin_j2000_i', cat1_dec='deltawin_j2000_i', cat2_ra='ra', cat2_dec='dec')
+    #MoreUtils.ScaleCovariance(c, None, None, nside=4096, nest=False, cat1_ra='ra', cat1_dec='dec', cat2_ra='ra', cat2_dec='dec')
+
+
     #fig, ax = plt.subplots(1,1, figsize=(16,6))
     fig, ax = plt.subplots(1,2, figsize=(16,6), tight_layout=True)
     PlottingStuff.PlotOne('a15', plotkwargs={'c':'gray', 'label':r'A 1.5'}, ax=ax[0])
-    PlottingStuff.PlotOne('a17', plotkwargs={'c':'gray', 'label':r'A 1.7'}, ax=ax[0])
-    PlottingStuff.PlotOne('a2', plotkwargs={'c':'gray', 'label':r'A 2.0'}, ax=ax[0])
+    #PlottingStuff.PlotOne('a17', plotkwargs={'c':'gray', 'label':r'A 1.7'}, ax=ax[0])
+    #PlottingStuff.PlotOne('a2', plotkwargs={'c':'gray', 'label':r'A 2.0'}, ax=ax[0])
     PlottingStuff.PlotOne('a15', plotkwargs={'c':'gray', 'label':r'A 1.5'}, ax=ax[1])
-    PlottingStuff.PlotOne('a17', plotkwargs={'c':'gray', 'label':r'A 1.7'}, ax=ax[1])
-    PlottingStuff.PlotOne('a2', plotkwargs={'c':'gray', 'label':r'A 2.0'}, ax=ax[1])
+    #PlottingStuff.PlotOne('a17', plotkwargs={'c':'gray', 'label':r'A 1.7'}, ax=ax[1])
+    #PlottingStuff.PlotOne('a2', plotkwargs={'c':'gray', 'label':r'A 2.0'}, ax=ax[1])
     #PlottingStuff.PlotOne('ASHLEY', plotkwargs={'c':'gray', 'label':r'Ashley Prediction'}, ax=ax)
 
 
     #vers = 2
     #label = 'BM-no%i-23-24-test' %(vers)
-    label = 'BM-no%i-23-24'
+    #label = 'BM-no%i-23-24'
+
+    vers = 2
+    label = 'BM-no%i-23-24-smaller' %(vers)
     PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'red', 'label':r'Without v3\_2', 'fmt':'o'}, ax=ax[0], contam=0.04)
     ax[0].set_title('Suchyta')
 
+    #label = 'BM-no%i-23-24-smaller-wn' %(vers)
+    #PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'green', 'label':r'Keeping Nosim', 'fmt':'o'}, ax=ax[0], contam=0.04)
+    #ax[0].set_title('Suchyta')
+
+    label = 'BM-no%i-23-24-smaller-UD' %(vers)
+    PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'blue', 'label':r'Uniform (DEC cut)', 'fmt':'o'}, ax=ax[0], contam=0.04)
+    ax[0].set_title('Suchyta')
+
+    vers = 2
+    label = 'BM-no%i-23-24-smaller' %(vers)
+    PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'red', 'label':r'Without v3\_2', 'fmt':'o'}, ax=ax[0], contam=0.04)
+    ax[0].set_title('Suchyta')
+    
     '''
     label = 'jelena-no-hole-23-24'
     PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DB', plotkwargs={'c':'blue', 'label':r'Without v3\_2', 'fmt':'o'}, ax=ax[1], contam=0.036)
@@ -651,11 +675,15 @@ if __name__=='__main__':
     '''
 
     j1 = 'JelenaFiles/jelena-notwo-w_theta_0_0_LS.dat'
-    PlotJ(j1, ax[1], plotkwargs={'c':'blue', 'label':r'Jelena v1', 'fmt':'o'}, contam=0.036)
+    PlotJ(j1, ax[1], plotkwargs={'c':'blue', 'label':r'Jelena v2', 'fmt':'o'}, contam=0.036)
 
-    label = 'COSMOS-morph-23-24-v9'
+    label = 'COSMOS-Umorph-23-24-v1'
     PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'black', 'label':r'COSMOS', 'fmt':'o'}, ax=ax[0])
     PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'black', 'label':r'COSMOS', 'fmt':'o'}, ax=ax[1])
+
+    label = 'COSMOS-Umorph-23-24-v2'
+    PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'green', 'label':r'COSMOS', 'fmt':'o'}, ax=ax[0])
+    PlottingStuff.PlotOne(label, outdir='CorrFiles', band='i', kind='DU', plotkwargs={'c':'green', 'label':r'COSMOS', 'fmt':'o'}, ax=ax[1])
 
     #PlottingStuff.PlotOne('ACS', plotkwargs={'c':'black', 'label':r'ACS', 'fmt':'o'}, ax=ax)
     #PlottingStuff.PlotOne('ACS21', plotkwargs={'c':'black', 'label':r'ACS', 'fmt':'o'}, ax=ax)
@@ -666,5 +694,4 @@ if __name__=='__main__':
     ax[0].legend(loc='best')
     ax[1].legend(loc='best')
     plt.show()
-
 

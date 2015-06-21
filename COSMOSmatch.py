@@ -185,9 +185,9 @@ if __name__=='__main__':
     #PlotPointsArr(masked_morph, e, u, title=['COSOMS Morphology', 'Enrique Randoms', 'Randoms'], s=[0.5,0.2, 0.2])
     #print len(masked_morph), len(e), len(u)
 
-    masked_morph, e  = MoreUtils.GetCOSMOS23()
-    PlotPointsArr(masked_morph, e, title=['COSOMS Morphology', 'Enrique Randoms'], s=[0.5,0.2])
-    print len(masked_morph), len(e)
+    masked_morph, e, u  = MoreUtils.GetCOSMOS23()
+    PlotPointsArr(masked_morph, e, u, title=['COSOMS Morphology', 'Enrique Mask', 'Randoms'], s=[0.5,0.5, 0.05])
+    print len(masked_morph), len(e), len(u)
 
     plt.show()
 
