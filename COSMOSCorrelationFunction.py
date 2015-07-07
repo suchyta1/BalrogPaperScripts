@@ -2,6 +2,8 @@
 
 import numpy as np
 import numpy.lib.recfunctions as recfunctions
+import sklearn.neighbors as NN
+
 import os
 import sys
 import esutil
@@ -17,12 +19,50 @@ import time
 import json
 #import seaborn as sns
 
+import matplotlib
 import matplotlib.pyplot as plt
 
 import Utils
 import MoreUtils
 import JacknifeSphere as JK
 import PlottingStuff
+import COSMOSmatch
+
+
+def WJKCorr(arrs, datara=None, datadec=None, dataweight=None, randomra=None, randomdec=None, corrconfig=None):
+    if corrconfig is None:
+        print 'no corrconfig given, using default'
+        corrconfig = {'sep_units': 'arcmin',
+                      'min_sep': 0.1,
+                      'max_sep': 600.0,
+                      'nbins': 40,
+                      'bin_slop': 0.25}
+
+    data = arrs[0]
+    random = arrs[1]
+
+    if dataweight is None:
+        DataCat = treecorr.Catalog(ra=data[datara], dec=data[datadec], ra_units='degrees', dec_units='degrees')
+    else:
+        w = data[dataweight]
+        DataCat = treecorr.Catalog(ra=data[datara], dec=data[datadec], ra_units='degrees', dec_units='degrees', w=w)
+        print len(data[dataweight]), len(np.unique(data[dataweight]))
+
+    RandCat = treecorr.Catalog(ra=random[randomra], dec=random[randomdec], ra_units='degrees', dec_units='degrees')
+    dd = treecorr.NNCorrelation(**corrconfig)
+    dr = treecorr.NNCorrelation(**corrconfig)
+    rr = treecorr.NNCorrelation(**corrconfig)
+    
+    dd.process(DataCat)
+    dr.process(DataCat,RandCat)
+    rr.process(RandCat)
+    xi, varxi = dd.calculateXi(rr, dr)
+
+
+    r = np.exp(dd.logr) / 60.0
+
+    return [ [xi], [r] ]
+
 
 
 
@@ -462,7 +502,8 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [des,sim], [mra,rra], [mdec,rdec], JKCorr, jargs=[], jkwargs={'datara':mra, 'datadec':mdec, 'randomra':rra, 'randomdec':rdec, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save, itsave=True, rtype=rtype)
     '''
 
-    masked_morph, mask, random = MoreUtils.GetCOSMOS23()
+    masked_morph, mask, random = MoreUtils.GetCOSMOS21()
+    #masked_morph, mask, random = MoreUtils.GetCOSMOS23()
     #masked_morph, random = MoreUtils.GetCOSMOS23()
     mra = 'ra'    
     mdec = 'dec'
@@ -473,6 +514,426 @@ def Correlate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt
     hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [masked_morph,random], [mra,rra], [mdec,rdec], JKCorr, jargs=[], jkwargs={'datara':mra, 'datadec':mdec, 'randomra':rra, 'randomdec':rdec, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save, itsave=True, rtype=rtype)
 
 
+def WeightedCorrelate(band='i', outdir='CorrFiles', outlabel='test', jfile='24-jacks.txt', njack=24, generatejack=False,  corrconfig=None, rtype='n-1', addband=False, desfile='des-58-21-22.fits', simfile='sim-58-21-22.fits', lower=21, upper=22, nbins=15, usemorph=False, jafile=None, hfile=None, usepz=False):
+    basedir = os.path.join(outdir, outlabel, band)
+    if generatejack:
+        jtype = 'generate'
+    else:
+        jtype = 'read'
+
+
+    masked_morph, mask, random = MoreUtils.GetCOSMOS21(usemorph=usemorph, jfile=jafile, hfile=hfile, usepz=usepz)
+    #masked_morph, mask, random = MoreUtils.GetCOSMOS23()
+    #masked_morph, random = MoreUtils.GetCOSMOS23()
+    mra = 'ra'    
+    mdec = 'dec'
+    rra = 'ra'
+    rdec = 'dec'
+
+    des = esutil.io.read(desfile)
+    sim = esutil.io.read(simfile)
+
+    '''
+    mcut = (sim['mag_auto_i'] < 22.7)
+    sim = sim[mcut]
+    '''
+    
+    #bins = np.linspace(lower, upper, nbins)
+    bins = np.arange(19, 25.01, 0.1)
+    #wcol = 'weight'
+    wcol = None
+
+    if hfile is not None:
+        cut = (masked_morph['weight'] > 0)
+        masked_morph = masked_morph[cut]
+        masked_morph['weight'] = masked_morph['weight'] / np.sum(masked_morph['weight'])
+
+
+        xl = [21, 25.2]
+        yl = [-1, 3]
+
+        i = masked_morph['i_mag_auto'] 
+        r = masked_morph['ri_color']
+        icut = (xl[0] < i) & (i < xl[1])
+        rcut = (yl[0] < r) & (r < yl[1])
+        cut = (icut & rcut)
+        masked_morph = masked_morph[cut]
+        bins = [np.arange(yl[0], yl[1]+0.001, 0.1), np.arange(xl[0], xl[1]+0.001, 0.1) ]
+        c = [r[cut], i[cut]]
+        d = [sim['mag_r']-sim['mag_i'], sim['mag_i']]
+        masked_morph = SizeMagWeight(masked_morph, c, d, bins, hfile=True)
+
+
+        ind = np.arange(len(masked_morph))
+        use = np.random.choice(ind, size=5*len(masked_morph), p=masked_morph['weight'])
+        masked_morph = masked_morph[use]
+
+    elif jafile is not None:
+        cut = (masked_morph['w'] > 0)
+        masked_morph = masked_morph[cut]
+        masked_morph['w'] = masked_morph['w'] / np.sum(masked_morph['w'])
+
+        '''
+        i = masked_morph['mag_auto_i'] 
+        r = masked_morph['mag_auto_r']
+        icut = (i < 27.99)
+        rcut = (r < 27.99)
+        cut = (icut & rcut)
+        masked_morph = masked_morph[cut]
+        bins = [np.arange(19, 28.31, 0.2), np.arange(19, 28.31, 0.2) ]
+        c = [r[cut], i[cut]]
+        d = [sim['mag_r'], sim['mag_i']]
+        masked_morph = SizeMagWeight(masked_morph, c, d, bins, jfile=True)
+        '''
+
+        ind = np.arange(len(masked_morph))
+        use = np.random.choice(ind, size=5*len(masked_morph), p=masked_morph['w'])
+        masked_morph = masked_morph[use]
+
+
+    elif usemorph:
+        #masked_morph = AssignWeight(masked_morph, des, bins, ccol='MAG_AUTO_ACS', dcol='mag_auto_i', wcol=wcol)
+        #masked_morph = AssignWeight(masked_morph, sim, bins, ccol='MAG_AUTO_ACS', dcol='mag_i', wcol=wcol)
+
+        cut = (masked_morph['R_HALF'] > 0)
+        masked_morph = masked_morph[cut]
+
+        r = np.log10( masked_morph['R_HALF'] * 0.03 * 1.0/np.sqrt(masked_morph['AxialRatio']) )
+        m = masked_morph['MAG_AUTO_ACS']
+        cut = (r < 3)
+        masked_morph = masked_morph[cut]
+
+        bins = [np.arange(-2.7, 3.31, 0.2), np.arange(19, 25.31, 0.2) ]
+        c = [r[cut], m[cut]]
+        d = [np.log10(sim['halflightradius_0_i']), sim['mag_i'] ]
+        masked_morph = SizeMagWeight(masked_morph, c, d, bins)
+  
+    else:
+        #masked_morph = AssignWeight(masked_morph, des, bins, ccol='i_mag_auto', dcol='mag_auto_i', wcol=wcol)
+        #masked_morph = AssignWeight(masked_morph, sim, bins, ccol='i_mag_auto', dcol='mag_i', wcol=wcol)
+
+        '''
+        cut = (masked_morph['i_fwhm'] > 0)
+        masked_morph = masked_morph[cut]
+        bins = [np.arange(-3, 3, 0.1), np.arange(19, 25.01, 0.1) ]
+        c = [np.log10(masked_morph['i_fwhm']/2.0*0.03), masked_morph['i_mag_auto'] ]
+        d = [np.log10(sim['halflightradius_0_i']), sim['mag_i'] ]
+        '''
+
+        '''
+        cut = (masked_morph['r_mag'] < 28)
+        masked_morph = masked_morph[cut]
+        #cut = (masked_morph['i_mag_auto'] < 24.999)
+        cut = (masked_morph['i_mag'] < 24.999)
+        masked_morph = masked_morph[cut]
+        bins = [np.arange(19, 28.41, 0.4), np.arange(19, 25.41, 0.4) ]
+        #c = [masked_morph['r_mag'], masked_morph['i_mag_auto'] ]
+        c = [masked_morph['r_mag'], masked_morph['i_mag'] ]
+        d = [sim['mag_r'], sim['mag_i'] ]
+        masked_morph = SizeMagWeight(masked_morph, c, d, bins)
+        '''
+
+        i = masked_morph['i_mag'] + masked_morph['auto_offset']
+        r = masked_morph['r_mag'] + masked_morph['auto_offset']
+        icut = (i < 27.99)
+        rcut = (r < 27.99)
+        cut = (icut & rcut)
+        masked_morph = masked_morph[cut]
+        bins = [np.arange(19, 28.31, 0.2), np.arange(19, 28.31, 0.2) ]
+        c = [r[cut], i[cut]]
+        d = [sim['mag_r'], sim['mag_i']]
+        masked_morph = SizeMagWeight(masked_morph, c, d, bins)
+    
+
+    save = FileSetup(basedir, 'DU', corrconfig)
+    hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [masked_morph,random], [mra,rra], [mdec,rdec], WJKCorr, jargs=[], jkwargs={'datara':mra, 'datadec':mdec, 'randomra':rra, 'randomdec':rdec, 'dataweight':wcol, 'corrconfig':corrconfig}, jtype=jtype, jfile=jfile, njack=njack, save=save, itsave=True, rtype=rtype)
+
+
+def AssignWeight(c, d, bins, ccol='i_mag_auto', dcol='mag_auto_i', wcol='weight'):
+    hist_c, bins_c = np.histogram(c[ccol], bins=bins)
+    hist_d, bins_d = np.histogram(d[dcol], bins=bins)
+
+    hc = hist_c / float(len(c))
+    hd = hist_d / float(len(d))
+    weight = hd / hc
+
+    bs = np.digitize(c[ccol], bins=bins) - 1
+    ws = weight[bs]
+    cut = (ws > 0)
+    ws = ws[cut]
+    c = c[cut]
+
+    wval = ws / np.sum(ws)
+    ind = np.arange(len(c))
+    use = np.random.choice(ind, size=len(c), p=wval)
+    c = c[use]
+
+    '''
+    print len(wval), len(c), np.sum(wval)
+    c = recfunctions.append_fields(c, wcol, data=wval, usemask=False)
+    '''
+
+    '''
+    cent = (bins[1:]+bins[:-1])/2.0
+    fig, ax = plt.subplots(1,1)
+    ax.plot(cent, hc, color='red', label='COSMOS')
+    ax.plot(cent, hd, color='blue', label='DES')
+
+    fig, ax = plt.subplots(1,1)
+    ax.plot(cent, weight, color='black')
+    #plt.show()
+    #sys.exit()
+
+    fig, ax = plt.subplots(1,1)
+    ax.hist(ws, bins=np.unique(ws), log=True)
+
+
+    rbins = np.arange(-3, 2, 0.1)
+    fig, ax = plt.subplots(1,1)
+    r = np.log10(c['R_HALF']*0.03)
+    ax.hist(r, bins=rbins)
+    fig, ax = plt.subplots(1,1)
+    r = np.log10(d['halflightradius_0_i'])
+    ax.hist(r, bins=rbins)
+    
+    plt.show()
+    sys.exit()
+    '''
+
+    return c
+
+
+def SizeMagWeight(c, cc, dd, bins, jfile=False, hfile=False):
+
+    hist_c, bins_c0, bins_c1 = np.histogram2d(cc[0], cc[1], bins=bins)
+    hist_d, bins_d0, bins_d1 = np.histogram2d(dd[0], dd[1], bins=bins)
+
+    hc = hist_c / float(len(cc[0]))
+    hd = hist_d / float(len(dd[0]))
+
+    weight = np.zeros( hc.shape )
+    ccut = (hc > 0)
+    weight[ccut] = hd[ccut] / hc[ccut]
+
+
+
+    if jfile:
+        #weight = c['w']
+        ws = np.copy(c['w'])
+        wcut = (ws > 0)
+        ws = ws[wcut]
+        c = c[wcut]
+
+    elif hfile:
+        ws = np.copy(c['weight'])
+        wcut = (ws > 0)
+        ws = ws[wcut]
+        c = c[wcut]
+
+    else:
+        bs_0 = np.digitize(cc[0], bins=bins[0]) - 1
+        bs_1 = np.digitize(cc[1], bins=bins[1]) - 1
+
+        '''
+        cut = (bs_0 == -1) | (bs_0 == len(bins[0])) | (bs_1 == -1) | (bs_1 == len(bins[1]))
+        bs_0 = bs_0[cut]
+        bs_1 = bs_1[cut]
+        c = c[cut]
+        '''
+
+        ws = weight[ bs_0, bs_1 ] 
+
+        scut = cc[0] > -1.0
+        c = c[scut]
+        cc[0] = cc[0][scut]
+        cc[1] = cc[1][scut]
+        ws = ws[scut]
+
+        wcut = (ws > 0)
+        ws = ws[wcut]
+        c = c[wcut]
+
+        
+
+
+    wval = ws / np.sum(ws)
+    ind = np.arange(len(c))
+    print len(ind)
+    use = np.random.choice(ind, size=1*len(c), p=wval)
+    c = c[use]
+
+
+    scut = (cc[0][wcut] < -1.1)
+    print np.sum(ws[scut]) / np.sum(ws)
+
+
+    #fig, axarr = plt.subplots(1,4, figsize=(15,3), tight_layout=True)
+    #fig, axarr = plt.subplots(2,2, figsize=(8,7), tight_layout=True)
+    #axarr = [axarr[0,1], axarr[0,0], axarr[1,0], axarr[1,1]]
+
+    csize = 0.05
+    esize = 0.4
+    fig = plt.figure(figsize=(9,7), tight_layout=True)
+    gs = gridspec.GridSpec(2,5, width_ratios=[1,csize, esize, 1,csize])
+    gs.update(wspace=0.025,hspace=0.02)
+    axarr = [fig.add_subplot(gs[3]), fig.add_subplot(gs[0]), fig.add_subplot(gs[5]), fig.add_subplot(gs[8])]
+    caxarr = [fig.add_subplot(gs[6]), fig.add_subplot(gs[9])]
+
+
+    xl = [21, 25.2]
+    yl = [-1, 3]
+    ext = [xl[0],xl[1], yl[0],yl[1]]
+    vmax = -1.8
+    vmin = -6.2
+
+    #ext = [bins[1][0],bins[1][-1], bins[0][0],bins[0][-1]]
+
+    cm1 = plt.get_cmap('YlOrRd')
+    cax = axarr[1].imshow(np.log10(hc), interpolation='nearest', origin='lower', extent=ext, vmin=vmin, vmax=vmax, cmap=cm1)
+    #cbar = fig.colorbar(cax, ax=axarr[1], fraction=0.046, pad=0.04)
+    #cbar.locator = matplotlib.ticker.MaxNLocator(6-1)
+    #cbar.update_ticks()
+    #cbar.set_label(r'$\log_{10} \, n$')
+
+    cax = axarr[0].imshow(np.log10(hd), interpolation='nearest', origin='lower', extent=ext, cmap=cm1, vmin=vmin, vmax=vmax)
+    #cbar = fig.colorbar(cax, ax=axarr[0], fraction=0.046, pad=0.04)
+    #cbar.locator = matplotlib.ticker.MaxNLocator(6-1)
+    #cbar.update_ticks()
+    #cbar.set_label(r'$\log_{10} \, n$')
+
+    fsize = 21
+    pos = [21.2, 2.6]
+    #axarr[1].set_title('COSMOS')
+    axarr[1].text(pos[0], pos[1], 'COSMOS', fontsize=fsize)
+
+    #axarr[0].set_title('DES')
+    #axarr[0].text(pos[0], pos[1], 'DES', fontsize=fsize)
+    axarr[0].text(pos[0], pos[1], r'\textsc{Balrog}', fontsize=fsize)
+
+    cut = (hc == 0)
+    ww = np.copy(weight)
+    ww[cut] = 0
+    #cax = axarr[0,2].imshow(np.log10(ww/np.sum(ww)), interpolation='nearest', origin='lower', extent=ext)
+    #cbar = fig.colorbar(cax, ax=axarr[0,2], fraction=0.046, pad=0.04)
+    #cax = axarr[1,2].scatter(cc[1][wcut],cc[0][wcut], c=np.log10(ws), lw=0, s=2)
+    #cbar = fig.colorbar(cax, ax=axarr[1,2], fraction=0.046, pad=0.04)
+
+    cax = axarr[2].scatter(cc[1][wcut],cc[0][wcut], c=np.log10(ws), lw=0, s=2)
+    #cbar = fig.colorbar(cax, ax=axarr[2], fraction=0.046, pad=0.04)
+    cbar = fig.colorbar(cax, cax=caxarr[0])
+
+    cbar.locator = matplotlib.ticker.MaxNLocator(6-1)
+    cbar.update_ticks()
+    cbar.set_label(r'$\log_{10} \, W$', fontsize=fsize)
+    axarr[2].set_xlim(xl)
+    axarr[2].set_ylim(yl)
+    axarr[2].set_aspect('equal')
+
+    #axarr[2].set_title('COSMOS Weights')
+    axarr[2].text(pos[0], pos[1], 'COSMOS Weights', fontsize=fsize)
+
+    """
+    axarr[1,2].set_xlim( [ext[0],ext[1]] )
+    axarr[1,2].set_ylim( [ext[2],ext[3]] )
+    axarr[0,2].set_title('DES/COSMOS')
+    axarr[1,2].set_title('COSMOS Weights')
+
+    #axarr[1,1].axis('off')
+    axarr[1,1].scatter(dd[1], dd[0], color='black', lw=0, s=0.1)
+    axarr[1,1].set_title('DES')
+    axarr[1,1].set_xlim( [ext[0],ext[1]] )
+    axarr[1,1].set_ylim( [ext[2],ext[3]] )
+    """
+
+    """
+    axarr[1,2].set_xlim(xl)
+    axarr[1,2].set_ylim(yl)
+    axarr[0,2].set_title('DES/COSMOS')
+    axarr[1,2].set_title('COSMOS Weights')
+
+    #axarr[1,1].axis('off')
+    axarr[1,1].scatter(dd[1], dd[0], color='black', lw=0, s=0.1)
+    axarr[1,1].set_title('DES')
+    axarr[1,1].set_xlim(xl)
+    axarr[1,1].set_ylim(yl)
+    """
+
+
+
+    #axarr[1,0].axis('off')
+    #axarr[1,0].scatter(c['i_mag_auto'], c['r_mag'], color='black', lw=0, s=0.1)
+    '''
+    i = c['i_mag'] + c['auto_offset']
+    r = c['r_mag'] + c['auto_offset']
+    axarr[1,0].scatter(i, r, color='black', lw=0, s=0.1)
+    '''
+    #axarr[1,0].scatter(c['i_mag'], c['r_mag'], color='black', lw=0, s=0.1)
+    #axarr[1,0].scatter(c['MAG_AUTO_ACS'], np.log10(c['R_HALF']*0.03*1.0/np.sqrt(c['AxialRatio'])), color='black', lw=0, s=0.1)
+    #axarr[1,0].scatter(c['mag_auto_i'], c['mag_auto_r'], color='black', lw=0, s=0.1)
+    #axarr[1,0].scatter(c['i_mag_auto'], np.log10(c['i_fwhm']/2.0*0.03), color='black', lw=0, s=0.1)
+
+    #axarr[1,1].scatter(c['i_mag_auto'], c['ri_color'], color='black', lw=0, s=0.1)
+    hcr, bins_hcr0, bins_hcr1 = np.histogram2d(c['ri_color'], c['i_mag_auto'], bins=bins)
+    hcr = hcr / float(len(c))
+    cax = axarr[3].imshow(np.log10(hcr), interpolation='nearest', origin='lower', extent=ext, vmin=vmin, vmax=vmax, cmap=cm1)
+    #cbar = fig.colorbar(cax, ax=axarr[3], fraction=0.046, pad=0.04)
+    cbar = fig.colorbar(cax, cax=caxarr[1])
+    cbar.locator = matplotlib.ticker.MaxNLocator(6-1)
+    cbar.update_ticks()
+    cbar.set_label(r'$\log_{10} \, N/N_{\mathrm{tot}}$', fontsize=fsize)
+
+    #axarr[3].set_title('Resampled COSMOS')
+    axarr[3].text(pos[0], pos[1], 'COSMOS Resampled', fontsize=fsize)
+
+    axarr[3].set_xlim(xl)
+    axarr[3].set_ylim(yl)
+    axarr[3].set_aspect('equal')
+    '''
+    axarr[1,0].set_xlim( [ext[0],ext[1]] )
+    axarr[1,0].set_ylim( [ext[2],ext[3]] )
+    '''
+
+    #COSMOSmatch.PlotPointsArr(c, title=['Suchyta'], s=[0.2])
+    #MoreUtils.MakeHPMap(c, ra='ra', dec='dec', nside=1024, nest=False, title='Maps/cosmos-bright-500NN', min=None, max=None)
+
+    for i in range(4):
+        #for j in range(2):
+        Utils.NTicks(axarr[i], nxticks=6, nyticks=6)
+        if i > 1:
+            axarr[i].set_xlabel(r'$i$ [mag]', fontsize=fsize)
+        else:
+            xt = axarr[i].get_xticklabels()
+            plt.setp(xt, visible=False)
+
+        if i==1 or i==2:
+            axarr[i].set_ylabel(r'$r-i$ [mag]', fontsize=fsize)
+
+    #plt.show()
+    plt.savefig('Plots/COSMOS-faint-selection.png')
+    sys.exit()
+
+
+    return c
+
+
+def NNWeight(ccat, dcat, fix='n', r=0.25, n=10):
+    ctree = NN.KDTree(ccat)
+    dtree = NN.KDTree(dcat)
+
+    if fix=='n':
+        dist_c, ind_c = ctree.query(ccat, k=n)
+        dist_d, ind_d = dtree.query(ccat, k=n)
+
+        rad_c = dist_c[:, n]
+        rad_d = dist_c[:, n]
+
+        ndim = ccat.shape[-1]
+        vol_c = np.power(rad_c, ndim)
+        vol_d = np.power(rad_d, ndim)
+        weight = vol_c / vol_d
+
+    else:
+        pass
 
 
 def FileSetup(basedir, name, corrconfig):
@@ -620,11 +1081,41 @@ if __name__=='__main__':
     '''
 
 
-    label = 'COSMOS-Umorph-23-24-v2'
     #label = 'jelena-no-hole-23-24-perN-now'
-    njack = 24
+
+
+    #label = 'COSMOS-Umorph-21-22-v6'
+    #njack = 24
     #Correlate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1')
-    #sys.exit()
+
+    #label = 'COSMOS-2D-tweighted-21-22-v14'
+    #label = 'COSMOS-2Dm-tweighted-21-22-v30'
+    label = 'COSMOS-2Dm-tweighted-23-24-v11'
+    njack = 24
+    #WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-21-22.fits', simfile='sim-58-21-22.fits', usemorph=False, jafile=None, usepz=True)
+    #WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-21-22.fits', simfile='sim-58-21-22.fits', usemorph=True, hfile='weighted_cosmos_phot.fits', jafile=None)
+    #WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-21-22.fits', simfile='sim-58-21-22.fits', usemorph=False, jafile='COSMOS_bright_500NN_EricSample_ri.fits')
+
+    #WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-23-24.fits', simfile='sim-58-23-24.fits', usemorph=False, jafile=None)
+    #WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-23-24.fits', simfile='sim-58-23-24.fits', usemorph=False, jafile='COSMOS_faint_500NN_masked-bugfix.fits')
+    WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-23-24.fits', simfile='sim-58-23-24.fits', usemorph=False, hfile='/n/des/huff.791/Projects/Luminosity/Scripts/regularizedInversion/weighted_cosmos_phot-faint.fits')
+    
+
+    sys.exit()
+
+    '''
+    label = 'COSMOS-weighted-Uphot-23-24-v1'
+    njack = 24
+    WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1', desfile='des-58-23-24.fits', simfile='sim-58-23-24.fits')
+    sys.exit()
+    '''
+
+    '''
+    label = 'COSMOS-Uphot-23-24-v1'
+    njack = 24
+    WeightedCorrelate(corrconfig=corrconfig, outlabel=label, njack=njack, jfile=os.path.join('JK-regions', '%iJK-%s'%(njack, label)), generatejack=True, addband=True, rtype='n-1')
+    sys.exit()
+    '''
 
     
     #d = esutil.io.read(os.path.join(os.environ['GLOBALDIR'],'sva1-umatch','des_i-griz.fits'))

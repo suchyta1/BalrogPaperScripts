@@ -6,6 +6,7 @@ import os
 import healpy as hp
 import numpy as np
 from scipy import stats
+import esutil
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,6 +15,7 @@ from matplotlib import gridspec
 
 import Utils
 import JacknifeSphere as JK
+import MoreUtils
 
 
 def Histograms(arr, things, b):
@@ -29,10 +31,10 @@ def Histograms(arr, things, b):
         shist, bins = np.histogram(sim, bins=bins)
         dhist, bins = np.histogram(des, bins=bins)
 
-        #ss = float(len(sim))
-        #dd = float(len(des))
-        ss = np.sum(shist)
-        dd = np.sum(dhist)
+        ss = float(len(sim))
+        dd = float(len(des))
+        #ss = np.sum(shist)
+        #dd = np.sum(dhist)
     
         s = np.log10( shist / (ss * db) )
         d = np.log10( dhist / (dd * db) )
@@ -333,9 +335,11 @@ def SetupFigure(stack, bands, basewidth=5.0, baseheight=4.5):
 
 
 def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, stack='diff', nticks=None, nxticks=None, leg=0, legloc='best', divide=None, jfile='fullJK-24.txt', vers=None, declow=None, dechigh=None):
+    band = 'i'
+    """
     speedup = Utils.GetUsualMasks()
     #speedup = {}
-  
+
     #datadir = os.path.join(os.environ['GLOBALDIR'],'with-version_matched')
     datadir = os.path.join(os.environ['GLOBALDIR'],'sva1-umatch')
     truth, matched, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True)
@@ -343,9 +347,8 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
     #datadir = os.path.join(os.environ['GLOBALDIR'],'COSMOS-v1')
     #matched, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True, notruth=True, needonly=False, noversion=True)
 
-    band = 'i'
 
-    
+
     '''
     cut = (matched['version_i']==2)
     matched = matched[cut]
@@ -367,10 +370,40 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
         cut = (des['version_i']==vers)
         des = des[cut]
     '''
+    """
+
+    des = esutil.io.read('des-gal.fits')
+    matched = esutil.io.read('sim-gal.fits')
 
 
     fig, axarr = SetupFigure(stack, bands)
-    hists, covs, extra, jextra = JK.JackknifeOnSphere( [matched,des], ['alphawin_j2000_i','alphawin_j2000_i'], ['deltawin_j2000_i', 'deltawin_j2000_i'], Histograms, jargs=[things,bins], jtype='read', jfile=jfile)
+    #hists, covs, extra, jextra = JK.JackknifeOnSphere( [matched,des], ['alphawin_j2000_i','alphawin_j2000_i'], ['deltawin_j2000_i', 'deltawin_j2000_i'], Histograms, jargs=[things,bins], jtype='read', jfile=jfile)
+
+    
+    basedir = os.path.join('1D-hists', 'mags', band)
+    '''
+    save = os.path.join(basedir, 'DD')
+    hists, covs, extra, jextra = JK.AltJackknifeOnSphere( [matched,des], ['alphawin_j2000_i','alphawin_j2000_i'], ['deltawin_j2000_i', 'deltawin_j2000_i'], Histograms, jargs=[things,bins], jtype='read', jfile=jfile, save=save, itsave=True, )
+    '''
+
+    hists = []
+    covs = []
+    extra = []
+    for i in range(4):
+        ind = i * 3
+        ond = i * 2
+        gb_x, gb_y, gb_err = MoreUtils.GetThing('mags', ind+0, other=ond, outdir='1D-hists', band=band, kind='DD')
+        gd_x, gd_y, gd_err = MoreUtils.GetThing('mags', ind+1, other=ond, outdir='1D-hists', band=band, kind='DD') 
+        gf_x, gf_y, gf_err = MoreUtils.GetThing('mags', ind+2, other=ond, outdir='1D-hists', band=band, kind='DD') 
+        hists.append(gb_y)
+        hists.append(gd_y)
+        hists.append(gf_y)
+        covs.append(gb_err)
+        covs.append(gd_err)
+        covs.append(gf_err)
+        extra.append(gb_x)
+        extra.append([])
+
 
     if divide is None:
         divide = [1.0]*len(things)
@@ -412,7 +445,8 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
                 u = r' $\left[ \mathrm{%s}  \right]$'%(unit)
                 uu = r' $\left[ \mathrm{%s}^{-1}  \right]$'%(unit)
                 axarr[i][0].set_xlabel(xlabel + u) 
-                axarr[i][0].set_ylabel(r'$\log_{10} p$' + uu)
+                if i==0:
+                    axarr[i][0].set_ylabel(r'$\log_{10} p$' + uu)
             else: 
                 axarr[i][0].set_xlabel(xlabel)
                 axarr[i][0].set_ylabel(r'$\log_{10} p$')
@@ -444,8 +478,8 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
             else: 
                 axarr[i][1].set_xlabel(xlabel)
     
-    #axarr[1][1].set_ylim( [-0.13, 0.06] )
-    #axarr[2][1].set_ylim( [-0.13, 0.06] )
+    axarr[1][1].set_ylim( [-0.13, 0.06] )
+    axarr[2][1].set_ylim( [-0.13, 0.06] )
     plt.tight_layout(h_pad=3.0, w_pad=3.0, pad=2.5)
 
     plt.show()
@@ -458,8 +492,8 @@ def GeneralDistsAndDifference(bands, things, bins, xlabels, units, modest=0, sta
 if __name__=='__main__': 
     
     #sns.axes_style(rc=style)
-    #style = Utils.ReadStyle('custom-sytle.mpl')
-    #style = Utils.SetStyle(style)
+    style = Utils.ReadStyle('custom-sytle.mpl')
+    style = Utils.SetStyle(style)
     
     #DistsAndDifference(bands=['g','r','i','z'], modest=0, what='mag_auto', whatbins=np.arange(18, 28, 0.2), xlabel=r'\texttt{mag\_auto}', unit='mag', trim=[0,7,8,8], nticks=10)
     #DistsAndDifference(bands=['i'], modest=1, what='mag_auto', whatbins=np.arange(18, 25, 0.2), xlabel=r'\texttt{mag\_auto}', unit='mag', trim=[0,0,0,0], nticks=10, stack='band')
@@ -475,13 +509,13 @@ if __name__=='__main__':
     GeneralDistsAndDifference(['iz','i','z','i'], ['mag_auto_iz', 'flux_radius_i','flux_radius_z', 'spreaderr_model_i'], bins, [r'\texttt{MAG\_AUTO\_I} - \texttt{MAG\_AUTO\_Z}', r'\texttt{FLUX\_RADIUS}', r'\texttt{FLUX\_RADIUS}', r'\texttt{SPREADERR\_MODEL}'], ['mag', 'pixel', 'pixel', 'mag'], modest=0, stack='diff', nticks=6, nxticks=6, divide=[1.0, 1.0, 1.0, 1.0e-3], jfile=jfile, legloc='lower center', vers=vers)
     '''
 
-    '''
-    #b = np.arange(18, 28, 0.2)
-    #bins = [b, b[:-7], b[:-8], b[:-8]]
-    b = np.arange(18, 24, 0.2)
-    bins = [b, b, b, b]
+    b = np.arange(18, 28, 0.2)
+    bins = [b, b[:-7], b[:-8], b[:-8]]
+    #b = np.arange(18, 24, 0.2)
+    #bins = [b, b, b, b]
     GeneralDistsAndDifference(['g','r','i','z'], ['mag_auto_g', 'mag_auto_r', 'mag_auto_i', 'mag_auto_z'], bins, [r'\texttt{MAG\_AUTO}']*4, ['mag']*4, modest=0, stack='diff', nticks=6, nxticks=6, jfile=jfile, vers=vers)
+
     '''
- 
     bins = [np.arange(17.8, 25, 0.2)]
     GeneralDistsAndDifference(['i'], ['mag_auto_i'], bins, [r'\texttt{MAG\_AUTO}'], ['mag'], modest=1, stack='band', nticks=6, nxticks=6, jfile=jfile, declow=-58)
+    '''

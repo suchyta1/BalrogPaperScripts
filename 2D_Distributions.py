@@ -12,6 +12,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import Utils
 import JacknifeSphere as JK
+from matplotlib import gridspec
 
 
 
@@ -285,8 +286,14 @@ def Make2DPlots2(band='i', outlabel='size-mag', modest=0, slrinvert=False, nxtic
     speedup = Utils.GetUsualMasks()
     #speedup = {}
   
-    datadir = os.path.join(os.environ['GLOBALDIR'],'with-version_matched')
+    #datadir = os.path.join(os.environ['GLOBALDIR'],'with-version_matched')
+    datadir = os.path.join(os.environ['GLOBALDIR'],'sva1-umatch')
+
+    '''
     truth, balrog, des, nosim = Utils.GetData2(band='i', dir=datadir, killnosim=True)
+    balrog = Utils.ApplyThings(balrog, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=True, invertbench=False, posband='i', **speedup)
+    des = Utils.ApplyThings(des, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=True, invertbench=False, posband='i', **speedup)
+    '''
 
     '''
     cut = (balrog['version_i']==2)
@@ -295,22 +302,27 @@ def Make2DPlots2(band='i', outlabel='size-mag', modest=0, slrinvert=False, nxtic
     des = des[cut]
     '''
 
-    balrog = Utils.ApplyThings(balrog, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=True, invertbench=False, posband='i', **speedup)
-    des = Utils.ApplyThings(des, band, slr=True, slrinvert=False, slrwrite=None, modestcut=modest, mag=False, colorcut=True, badflag=True, elimask=True, benchmask=True, invertbench=False, posband='i', **speedup)
+    des = esutil.io.read('des-gal.fits')
+    balrog = esutil.io.read('sim-gal.fits')
 
 
     files = [#None,
              '../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_FWHM__mean.fits.gz',
-             '../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_maglimit__.fits.gz',
-             '../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_AIRMASS__mean.fits.gz',
-             '../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_SKYBRITE__mean.fits.gz',
-             '../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_SKYSIGMA__mean.fits.gz']
+             #'../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_maglimit__.fits.gz'#,
+             #'../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_AIRMASS__mean.fits.gz',
+             #'../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_SKYBRITE__mean.fits.gz',
+             #'../BalrogRandoms/nside4096_oversamp4/SVA1_IMAGE_SRC_band_%s_nside4096_oversamp4_SKYSIGMA__mean.fits.gz'
+            ]
 
     names = [#'slr', 
-             'fwhm','maglim','airmass','sky-brightness','sky-sigma']
+             'fwhm',
+             #'maglim'#,'airmass','sky-brightness','sky-sigma'
+            ]
 
     labels = [#'mag',
-              r'PSF FWHM [pixel]', r'Mag Lim [mag]', r'Airmass', r'Sky Brightness [ADU]', r'Sky Sigma [ADU]']
+              r'PSF FWHM [pixel]', 
+              #r'Mag Lim [mag]'#, r'Airmass', r'Sky Brightness [ADU]', r'Sky Sigma [ADU]'
+             ]
             
     
     #for i in range(len(files[0:1])):
@@ -326,8 +338,38 @@ def Make2DPlots2(band='i', outlabel='size-mag', modest=0, slrinvert=False, nxtic
         cols = ['flux_radius','mag_auto']
 
 
-        fig, axarr = plt.subplots(4,3, figsize=(20,16))
+        #fig, axarr = plt.subplots(4,3, figsize=(20,16))
+       
+        #fig, axarr = plt.subplots(4,3, figsize=(16,12))
+        fig = plt.figure(figsize=(10.5,8.8), tight_layout=True)
+
+        csize = 0.05
+        esize = 0.35
+        gs1 = gridspec.GridSpec(4,6, width_ratios=[1,1,csize,esize, 1,csize], height_ratios=[1,1,1,1.3])
+        gs1.update(wspace=0.025,hspace=0.02)
+        gs2 = gridspec.GridSpec(4,6, width_ratios=[1,1,csize,esize, 1,csize], height_ratios=[1,1,1,1.3])
+        gs2.update(wspace=0.025,hspace=0.02)
+        gs3 = gridspec.GridSpec(4,6, width_ratios=[1,1,csize,esize, 1,csize], height_ratios=[1,1,1,1.3])
+        gs3.update(wspace=0.025,hspace=0.7)
+
+        axarr = np.array( [ [fig.add_subplot(gs1[0]), fig.add_subplot(gs1[1]), fig.add_subplot(gs2[4])],
+                            [fig.add_subplot(gs1[6]), fig.add_subplot(gs1[7]), fig.add_subplot(gs2[10])],
+                            [fig.add_subplot(gs1[12]), fig.add_subplot(gs1[13]), fig.add_subplot(gs2[16])],
+                            [fig.add_subplot(gs3[18]), fig.add_subplot(gs3[19]), fig.add_subplot(gs2[22])]
+                          ] )
+
+        caxarr = np.array( [ [fig.add_subplot(gs1[2]), fig.add_subplot(gs2[5])],
+                             [fig.add_subplot(gs1[8]), fig.add_subplot(gs2[11])],
+                             [fig.add_subplot(gs1[14]), fig.add_subplot(gs2[17])]
+                           ] )
+
+
+
+
         axarr[3,2].axis('off')
+        caxarr[1,0].axis('off')
+        caxarr[1,1].axis('off')
+
         balrogl, nbl = NHist(balrog2[0][0], cols, mbins, band)
         desl, ndl = NHist(des2[0][0], cols, mbins, band)
         balrogh, nbh = NHist(balrog2[0][1], cols, mbins, band)
@@ -348,54 +390,92 @@ def Make2DPlots2(band='i', outlabel='size-mag', modest=0, slrinvert=False, nxtic
         cut = (desh > 0)
         dh[cut] = (balrogh[cut] - desh[cut])/desh[cut]
 
+        fsize = 20
         ul = UniqueSys(des2[1][0], des2[2][0])
         axarr[3,0].hist(ul, bins=30)
-        axarr[3,0].set_xlabel(labels[i])
-        axarr[3,0].set_ylabel(r'Number')
-        Utils.NTicks(axarr[3,0], nxticks=nxticks, nyticks=nyticks)
+        axarr[3,0].set_xlabel(labels[i], fontsize=fsize)
+        #axarr[3,0].set_ylabel(r'Counts', fontsize=fsize)
+        axarr[3,0].set_ylabel(r'$N$', fontsize=fsize)
+
+        yt = np.arange(0, 1.5e4, 4e3)
+        ylim = [0, 1.5e4]
+        axarr[3,0].set_ylim(ylim)
+        axarr[3,0].set_yticks(yt)
+        Utils.NTicks(axarr[3,0], nxticks=nxticks, nyticks=None)
         
         uh = UniqueSys(des2[1][1], des2[2][1])
         axarr[3,1].hist(uh, bins=30)
-        axarr[3,1].set_xlabel(labels[i])
-        axarr[3,1].set_ylabel(r'Number')
-        Utils.NTicks(axarr[3,1], nxticks=nxticks, nyticks=nyticks)
+        axarr[3,1].set_xlabel(labels[i], fontsize=fsize)
+        #axarr[3,1].set_ylabel(r'Counts')
+
+        axarr[3,1].set_ylim(ylim)
+        axarr[3,1].set_yticks(np.copy(yt))
+        Utils.NTicks(axarr[3,1], nxticks=nxticks, nyticks=None)
+        axarr[3,1].get_yaxis().get_major_formatter().set_scientific(False)
+        yt = axarr[3,1].get_yticklabels()
+        plt.setp(yt, visible=False)
     
         usualx = r'\texttt{MAG\_AUTO} $\left[ \mathrm{mag} \right]$'
         usualy = r'\texttt{FLUX\_RADIUS} $\left[ \mathrm{pixel} \right]$'
-        usualkwargs = {'xlabel':usualx, 'ylabel':usualy, 'nxticks':nxticks, 'nyticks':nyticks}
+        #usualkwargs = {'xlabel':usualx, 'ylabel':usualy, 'nxticks':nxticks, 'nyticks':nyticks}
+        usualkwargs = {'nxticks':nxticks, 'nyticks':nyticks}
+
+        cm = 'YlOrRd'
+        cmd = 'jet'
+        #cm = 'gist_heat_r'
 
         cutl = (desl * ndl < 100)
-        iarr, marr, scale = TwoDPlot(desl, cutl, fig, axarr[1,0], mbins, scale=None, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(balrogl, cutl, fig, axarr[0,0], mbins, scale=scale, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(dl, cutl, fig, axarr[2,0], mbins, scale=[-0.25,0.25], cmap='bwr', **usualkwargs)
+        iarr, marr, scale = TwoDPlot(desl, cutl, fig, axarr[1,0], mbins, scale=None, cmap=cm, sfmt=True, yinv=False, cb=False, **usualkwargs)
+        iarr, marr, scale = TwoDPlot(balrogl, cutl, fig, axarr[0,0], mbins, scale=scale, cmap=cm, sfmt=True, yinv=False, cb=False, **usualkwargs)
+        iarr, marr, sc = TwoDPlot(dl, cutl, fig, axarr[2,0], mbins, scale=[-0.25,0.25], cmap='bwr', xinv=False, yinv=False, cb=False, **usualkwargs)
         
 
         cuth = (desh * ndh < 100)
-        iarr, marr, scale = TwoDPlot(desh, cuth, fig, axarr[1,1], mbins, scale=None, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(balrogh, cuth, fig, axarr[0,1], mbins, scale=scale, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(dh, cuth, fig, axarr[2,1], mbins, scale=[-0.25,0.25], cmap='bwr', **usualkwargs)
+        iarr, marr, scale = TwoDPlot(desh, cuth, fig, axarr[1,1], mbins, scale=scale, cmap=cm, caxis=caxarr[1,0], cb=False, sfmt=True, **usualkwargs)
+        iarr, marr, scale = TwoDPlot(balrogh, cuth, fig, axarr[0,1], mbins, scale=scale, cmap=cm, caxis=caxarr[0,0], cx=3.5, sfmt=True, **usualkwargs)
+        iarr, marr, sc = TwoDPlot(dh, cuth, fig, axarr[2,1], mbins, scale=[-0.25,0.25], cmap='bwr', xinv=False, caxis=caxarr[2,0], cx=5.5, **usualkwargs)
 
 
         cutc = (cutl & cuth)
-        iarr, marr, scale = TwoDPlot(diff_balrog, cutc, fig, axarr[1,2], mbins, scale=None, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(diff_des, cutc, fig, axarr[0,2], mbins, scale=scale, cmap='jet', sfmt=True, **usualkwargs)
-        iarr, marr, scale = TwoDPlot(d, cutc, fig, axarr[2,2], mbins, scale=[-0.5,0.5], cmap='bwr', **usualkwargs)
+        iarr, marr, scale = TwoDPlot(diff_balrog, cutc, fig, axarr[1,2], mbins, scale=None, cmap=cmd, caxis=caxarr[1,1], cb=False,  sfmt=True, **usualkwargs)
+        iarr, marr, scale = TwoDPlot(diff_des, cutc, fig, axarr[0,2], mbins, scale=scale, cmap=cmd, caxis=caxarr[0,1], sfmt=True, cx=3.0, **usualkwargs)
+        iarr, marr, scale = TwoDPlot(d, cutc, fig, axarr[2,2], mbins, scale=[-0.5,0.5], cmap='bwr', xinv=False, caxis=caxarr[2,1], cx=5.5, **usualkwargs)
         
+       
+        axarr[2,2].set_xlabel(r'\texttt{MAG\_AUTO} [mag]', fontsize=fsize)
+        axarr[1,0].set_ylabel(r'\texttt{FLUX\_RADIUS} [pixel]', fontsize=fsize)
+        axarr[0,0].set_title(r'Percentile $<$ 25', fontsize=fsize)
+        axarr[0,1].set_title(r'Percentile $>$ 75', fontsize=fsize)
+        axarr[0,2].set_title(r'Difference', fontsize=fsize)
         
-        plt.figtext(0.01, 0.9, r'\textsc{Balrog}', rotation='vertical', fontsize=24)
-        plt.figtext(0.01, 0.64, r'DES', rotation='vertical', fontsize=24)
-        plt.figtext(0.01, 0.42, r'Difference', rotation='vertical', fontsize=24)
+        pos = (20.3, 1.2)
+        axarr[0,0].text(pos[0], pos[1]+0.2, r'\textsc{Balrog}', fontsize=fsize)
+        axarr[0,1].text(pos[0], pos[1]+0.2, r'\textsc{Balrog}', fontsize=fsize)
+        axarr[0,2].text(pos[0], pos[1]+0.2, r'\textsc{Balrog}', fontsize=fsize)
+        axarr[1,0].text(pos[0], pos[1]+0.2, r'DES', fontsize=fsize)
+        axarr[1,1].text(pos[0], pos[1]+0.2, r'DES', fontsize=fsize)
+        axarr[1,2].text(pos[0], pos[1]+0.2, r'DES', fontsize=fsize)
+        axarr[2,0].text(pos[0], pos[1], r'\% Difference', fontsize=fsize)
+        axarr[2,1].text(pos[0], pos[1], r'\% Difference', fontsize=fsize)
+        axarr[2,2].text(pos[0], pos[1], r'\% Difference', fontsize=fsize)
 
-        plt.figtext(0.15, 0.98, r'Percentile $<$ 25', fontsize=24)
-        plt.figtext(0.47, 0.98, r'Percentile $>$ 75', fontsize=24)
-        plt.figtext(0.78, 0.98, r'Difference', fontsize=24)
+        #plt.figtext(0.01, 0.9, r'\textsc{Balrog}', rotation='vertical', fontsize=24)
+        #plt.figtext(0.01, 0.64, r'DES', rotation='vertical', fontsize=24)
+        #plt.figtext(0.01, 0.45, r'Fractional Difference', rotation='vertical', fontsize=24)
 
-        plt.tight_layout(pad=4, h_pad=1.7, w_pad=0.2)
+        #plt.figtext(0.15, 0.98, r'Percentile $<$ 25', fontsize=24)
+        #plt.figtext(0.47, 0.98, r'Percentile $>$ 75', fontsize=24)
+        #plt.figtext(0.78, 0.98, r'Difference', fontsize=24)
+
+        #plt.tight_layout(pad=2, h_pad=0.5, w_pad=0.2)
+        #plt.tight_layout()
+        #fig.tight_layout()
         outdir = os.path.join('Plots', outlabel, band)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, '%s.pdf'%(names[i]))
-        plt.savefig(outfile)
+        print outfile
+        plt.savefig(outfile, bbox_inches='tight')
         #plt.show()
 
 
@@ -410,9 +490,9 @@ def UniqueSys(sys, hpp):
     return sys[use]
 
 
-def TwoDPlot(arr, cut, fig, ax, bins, scale=None, cmap='jet', xlabel=None, ylabel=None, sfmt=False, nxticks=None, nyticks=None):
+def TwoDPlot(arr, cut, fig, ax, bins, scale=None, cmap='jet', xinv=True, yinv=True, xlabel=None, ylabel=None, cb=True, sfmt=False, nxticks=None, nyticks=None, caxis=None, cx=None):
     iarr, marr, scale, cmap = ColorMask(arr, cut, scale=scale, cmap=cmap)
-    WithMask(iarr, marr, ax, bins, scale, cmap, fig, sfmt=sfmt)
+    WithMask(iarr, marr, ax, bins, scale, cmap, fig, sfmt=sfmt, cb=cb, caxis=caxis, cx=cx)
 
     if xlabel is not None:
         ax.set_xlabel(xlabel)
@@ -421,16 +501,36 @@ def TwoDPlot(arr, cut, fig, ax, bins, scale=None, cmap='jet', xlabel=None, ylabe
 
     Utils.NTicks(ax, nxticks=nxticks, nyticks=nyticks)
 
+    if xinv:
+        xt = ax.get_xticklabels()
+        plt.setp(xt, visible=False)
+    if yinv:
+        yt = ax.get_yticklabels()
+        plt.setp(yt, visible=False)
+
     return iarr, marr, scale
 
 
-def WithMask(iarr, marr, ax, mbins, scale, cmap, fig, sfmt=False):
+def WithMask(iarr, marr, ax, mbins, scale, cmap, fig, sfmt=False, cb=True, caxis=None, cx=None):
     iax = ax.imshow(iarr, origin='lower', extent=[mbins[1][0],mbins[1][-1],mbins[0][0],mbins[0][-1]], interpolation='nearest', cmap=plt.get_cmap(cmap), vmin=scale[0], vmax=scale[1])
-    if sfmt:
-        cbar = fig.colorbar(iax, ax=ax, fraction=0.046, pad=0.04, format='%.1e')
-    else:
-        cbar = fig.colorbar(iax, ax=ax, fraction=0.046, pad=0.04)
+    if cb:
+        if sfmt:
+            cbar = fig.colorbar(iax, cax=caxis)
+            cbar.formatter.set_powerlimits((0, 0))
+            cbar.update_ticks()
+        else:
+            cbar = fig.colorbar(iax, cax=caxis)
+        cbar.locator = matplotlib.ticker.MaxNLocator(6-1)
+        cbar.update_ticks()
+        
+        for t in cbar.ax.get_yticklabels():
+            t.set_horizontalalignment('right')   
+            t.set_x(cx)
+        #cbar.ax.tick_params(labelsize=14)
+
+        
     max = ax.imshow(marr, origin='lower', extent=[mbins[1][0],mbins[1][-1],mbins[0][0],mbins[0][-1]], interpolation='nearest', cmap=plt.get_cmap('Greys'))
+
 
 
 def ColorMask(arr, cut, scale=None, cmap='jet'):

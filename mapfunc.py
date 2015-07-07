@@ -58,7 +58,7 @@ def visualizeHealPixMap(theMap, nest=True, title="map", norm=None, vmin=None, vm
     ax.autoscale_view()
     fig.colorbar(coll,ax=ax)
 
-    ax.set_ylim([-60.2, -43])
+    #ax.set_ylim([-60.2, -43])
 
     print "Writing to file: "+title+".png"
     fig.savefig(title+".png",format="png")

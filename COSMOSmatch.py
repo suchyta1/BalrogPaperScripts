@@ -97,6 +97,8 @@ def PlotPointsArr(*args, **kwargs):
 
 
     fig, ax = plt.subplots(1,size, figsize=(6*size,6), tight_layout=True)
+    if size==1:
+        ax = [ax]
     for i in range(size):
         npoints, xlim, ylim = Utils.PointMap(args[i], band=None, x=extra['x'][i], y=extra['y'][i], plotkwargs={'lw':0, 's':extra['s'][i]}, ax=ax[i])
         ax[i].set_title(extra['title'][i])
@@ -185,7 +187,10 @@ if __name__=='__main__':
     #PlotPointsArr(masked_morph, e, u, title=['COSOMS Morphology', 'Enrique Randoms', 'Randoms'], s=[0.5,0.2, 0.2])
     #print len(masked_morph), len(e), len(u)
 
-    masked_morph, e, u  = MoreUtils.GetCOSMOS23()
+    #masked_morph, e, u  = MoreUtils.GetCOSMOS23()
+    #masked_morph, e, u  = MoreUtils.GetCOSMOS21()
+
+    masked_morph, e, u  = MoreUtils.GetCOSMOS21(usemorph=False)
     PlotPointsArr(masked_morph, e, u, title=['COSOMS Morphology', 'Enrique Mask', 'Randoms'], s=[0.5,0.5, 0.05])
     print len(masked_morph), len(e), len(u)
 

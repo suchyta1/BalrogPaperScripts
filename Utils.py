@@ -308,7 +308,12 @@ def ApplyThings(cat, band, ra='alphawin_j2000', dec='deltawin_j2000', benchmask=
         cat = Modestify(cat, byband=band)
         cat = GalaxyCut(cat, band)
     if modestcut is not None:
-        cat = ModestCut(cat, band='i', key='modest', val=modestcut)
+        if modestcut!=-1:
+            cat = ModestCut(cat, band='i', key='modest', val=modestcut)
+        else:
+            cut = (cat['modest_i']!=2)
+            cat = cat[cut]
+
 
     if mag:
         cat = MagCut(cat, band, lower=lower, upper=upper)
@@ -438,10 +443,12 @@ def PointMap(data, band='i', x='alphawin_j2000', y='deltawin_j2000', ax=None, pl
 
     ax.scatter(data[x][keep],data[y][keep], **plotkwargs)
 
+    '''
     if xlabel is not None:
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
+    '''
     
     if xlim is not None:
         ax.set_xlim(xlim)
@@ -450,7 +457,28 @@ def PointMap(data, band='i', x='alphawin_j2000', y='deltawin_j2000', ax=None, pl
 
     if title is not None:
         ax.set_title(title)
-    return len(data[keep]), ax.get_xlim(), ax.get_ylim()
+
+    #return len(data[keep]), ax.get_xlim(), ax.get_ylim()
+
+
+def SPTEUniformRandom(size=5e8, band='i', rakey='ra', deckey='dec'):
+    ramin = 60.0,  
+    ramax = 95.0
+    decmin = -62.0
+    decmax = -42.0
+
+    ra = np.random.uniform(ramin,ramax, size)
+    tmin = np.cos( np.radians(90.0 - decmax) )
+    tmax = np.cos( np.radians(90.0 - decmin) )
+    theta = np.degrees( np.arccos( np.random.uniform(tmin,tmax, size) ) )
+    dec = 90.0 - theta
+
+    uniform = np.zeros(len(ra), dtype=[('%s_%s'%(rakey, band),np.float64), ('%s_%s'%(deckey, band),np.float64)])
+    uniform['%s_%s'%(rakey, band)] = ra
+    uniform['%s_%s'%(deckey, band)] = dec
+
+    #return ra, dec
+    return uniform
 
 
 def JKRegionPlot(cat, jfile, band, ra='alphawin_j2000', dec='deltawin_j2000', seed=None, ax=None, cmap=None):

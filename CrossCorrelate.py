@@ -687,9 +687,12 @@ if __name__=='__main__':
 
     #label = 'SxG-test-23-24'
     #Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-%s'%(label)), generatejack=False)
-    label = 'SxG-23-24-DEC-3'
-    #Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-BM-23-24-DEC'), generatejack=False)
-    #sys.exit()
+    #label = 'SxG-23-24-DEC-3'
+
+    label = 'SS-21-23'
+    Correlate(band=band, corrconfig=corrconfig, outlabel=label, jfile=os.path.join('JK-regions', '24JK-BM-23-24-DEC'), generatejack=False)
+    sys.exit()
+
 
     fig, ax = plt.subplots(1,1, figsize=(10,8))
 
