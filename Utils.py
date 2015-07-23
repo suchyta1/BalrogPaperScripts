@@ -457,8 +457,8 @@ def PointMap(data, band='i', x='alphawin_j2000', y='deltawin_j2000', ax=None, pl
 
     if title is not None:
         ax.set_title(title)
-
-    #return len(data[keep]), ax.get_xlim(), ax.get_ylim()
+    print len(data[keep])
+    return len(data[keep]), ax.get_xlim(), ax.get_ylim()
 
 
 def SPTEUniformRandom(size=5e8, band='i', rakey='ra', deckey='dec'):

@@ -398,6 +398,98 @@ def StellarAuto(gg, sg, gc=0.0, sc=0.0):
     return num/den
 
 
+def Hp2RaDec(ind, nside, nest=False):
+    theta, phi = hp.pix2ang(nside, ind, nest=nest)
+    ra = np.degrees(phi)
+    dec = 90.0 - np.degrees(theta)
+    return ra, dec
+
+def TTHist(sim, ra='alphawin_j2000_i', dec='deltawin_j2000_i', tkey='mag_i', okey='mag_auto_i'):
+    depth = hp.read_map('sva1_gold_1.0.2-4_nside4096_nest_i_auto_weights.fits.gz', nest=True)
+    nside = hp.npix2nside(depth.size)
+    spix = Utils.RaDec2Healpix(sim[ra], sim[dec], nside, nest=True)
+    d = depth[spix]
+    x = sim[tkey] - d
+    y = sim[okey] - sim[tkey]
+    
+    keep = ( np.fabs(x) < 0.1 )
+    bins = np.arange(-1, 1, 0.01)
+    h, b = np.histogram(y[keep], bins=bins)
+    #h, b = np.histogram(y, bins=bins)
+
+    return h, b
+
+def TTMag(sim, ra='alphawin_j2000_i', dec='deltawin_j2000_i', tkey='mag_i', okey='mag_auto_i'):
+    depth = hp.read_map('sva1_gold_1.0.2-4_nside4096_nest_i_auto_weights.fits.gz', nest=True)
+    nside = hp.npix2nside(depth.size)
+    spix = Utils.RaDec2Healpix(sim[ra], sim[dec], nside, nest=True)
+    d = depth[spix]
+    x = sim[tkey] - d
+    y = sim[okey] - sim[tkey]
+    return x, y
+
+def TMag(sim, olow=23.5, ohigh=23.6, ra='alphawin_j2000_i', dec='deltawin_j2000_i', tkey='mag_i'):
+    depth = hp.read_map('sva1_gold_1.0.2-4_nside4096_nest_i_auto_weights.fits.gz', nest=True)
+    nside = hp.npix2nside(depth.size)
+
+    spix = Utils.RaDec2Healpix(sim[ra], sim[dec], nside, nest=True)
+    d = depth[spix]
+    keep = (d > olow) & (d < ohigh)
+
+    mkeep = (sim[tkey] > olow) & (sim[tkey] < ohigh)
+    keep = (keep & mkeep)
+
+    print len(sim[keep])
+    return sim[keep]
+    
+
+def HPize(sim, eli, ra='alphawin_j2000_i', dec='deltawin_j2000_i', era='ra_i', edec='dec_i', nside=4096, nest=True):
+    map = np.ones( hp.nside2npix(nside) ) * hp.UNSEEN
+
+    spix = Utils.RaDec2Healpix(sim[ra], sim[dec], nside, nest=nest)
+    epix = Utils.RaDec2Healpix(eli[era], eli[edec], nside, nest=nest)
+    pix = np.union1d(spix, epix)
+    ind = np.arange(0, pix[-1], 1)
+
+    snum = np.bincount(spix, minlength=len(ind))
+    enum = np.bincount(epix, minlength=len(ind))
+    cut = np.in1d(ind, pix)
+    snum = snum[cut]
+    enum = enum[cut]
+    ind = ind[cut]
+    ra, dec = Hp2RaDec(ind, nside, nest=nest)
+
+    savg = float(len(sim)) / len(snum)
+    sdelta = (snum - savg) / savg
+    eavg = float(len(eli)) / len(enum)
+    edelta = (enum - eavg) / eavg
+
+    depth = hp.read_map('sva1_gold_1.0.2-4_nside4096_nest_i_auto_weights.fits.gz', nest=True)
+    nside = hp.npix2nside(map.size)
+    d = depth[ind]
+
+    scat = np.zeros(len(snum), dtype=[('hp',np.int32), ('n',np.int32), ('d',np.float32), ('ra',np.float32), ('dec',np.float32), ('depth',np.float32)])
+    scat['hp'] = ind
+    scat['n'] = snum
+    scat['d'] = sdelta
+    scat['ra'] = ra
+    scat['dec'] = dec
+    scat['depth'] = d
+
+    ecat = np.zeros(len(enum), dtype=[('hp',np.int32), ('n',np.int32), ('d',np.float32), ('ra',np.float32), ('dec',np.float32), ('depth',np.float32)])
+    ecat['hp'] = ind
+    ecat['n'] = enum
+    ecat['d'] = edelta
+    ecat['ra'] = ra
+    ecat['dec'] = dec
+    ecat['depth'] = d
+
+    print scat['d'], ecat['d']
+
+    return scat, ecat
+
+
+
 def MakeHPMap(cat, ra='alphawin_j2000_i', dec='deltawin_j2000_i', nside=512, nest=False, title='Maps/map', min=None, max=None):
     map = np.ones( hp.nside2npix(nside) ) * hp.UNSEEN
     pix = Utils.RaDec2Healpix(cat[ra], cat[dec], nside, nest=nest)
@@ -493,7 +585,7 @@ def CapError(y, yerr, small=1e-10):
     return yerr
 
 
-def ThingPlot(label, what, num, kind, ax, plotkwargs={}, band='i', dir='CorrFiles', other=0, xoffset=None, logxoffset=True, caperr=False, sample=1, start=0, tcut=False, tval=10.0, pscale=None, fill=False):
+def ThingPlot(label, what, num, kind, ax, plotkwargs={}, band='i', dir='CorrFiles', other=0, xoffset=None, logxoffset=True, caperr=False, sample=1, start=0, tcut=False, tval=10.0, pscale=None, fill=False, extrascale=None):
     f_theta, f_gg, f_ggcov = GetThing(label, num, other=other, outdir=dir, band=band, kind=kind)
    
     if tcut:
@@ -507,6 +599,9 @@ def ThingPlot(label, what, num, kind, ax, plotkwargs={}, band='i', dir='CorrFile
         max = np.amax(index) + 1
         f_ggcov = f_ggcov[min:max, min:max]
 
+    if extrascale is not None:
+        f_gg = f_gg * extrascale
+        f_ggcov = f_ggcov * np.power(extrascale, 2)
     
     if xoffset is not None:
         f_theta = Utils.OffsetX(f_theta, offset=xoffset, log=logxoffset)
@@ -520,10 +615,13 @@ def ThingPlot(label, what, num, kind, ax, plotkwargs={}, band='i', dir='CorrFile
         e = np.power(f_theta, pscale) * e
 
     if fill:
+        #ee = e[start::sample] / (np.log(10) * f_gg[start::sample])
+        #l = f_gg[start::sample] - ee
+        #u = f_gg[start::sample] + ee
         l = f_gg[start::sample] - e[start::sample]
         u = f_gg[start::sample] + e[start::sample]
         ax.fill_between(f_theta[start::sample], l, u, label='%s'%(what), **plotkwargs)
-        p = plt.Rectangle((0,0), 0,0,  **plotkwargs)
+        p = plt.Rectangle((1e-5,1e-5), 1e-5,1e-5,  **plotkwargs)
     else:
         p = ax.errorbar(f_theta[start::sample], f_gg[start::sample], e[start::sample], label='%s'%(what), **plotkwargs)
 
